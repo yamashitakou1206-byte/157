@@ -1,0 +1,704 @@
+name: 名鉄公式時刻表データ更新
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    - cron: "0 18 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@v4
+
+      - name: Pythonをセットアップ
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: 必要なライブラリをインストール
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests beautifulsoup4 pypdf pdfplumber lxml
+
+      - name: データフォルダを準備
+        run: |
+          mkdir -p data
+          mkdir -p data/pdfs
+
+      - name: 名鉄公式ページを取得
+        run: |
+          python - <<'PY'
+          import requests
+
+          url = "https://www.meitetsu.co.jp/train/timetable/"
+
+          response = requests.get(
+              url,
+              timeout=60,
+              headers={
+                  "User-Agent": "Mozilla/5.0"
+              }
+          )
+
+          response.raise_for_status()
+
+          with open(
+              "data/meitetsu_timetable.html",
+              "w",
+              encoding="utf-8"
+          ) as f:
+              f.write(response.text)
+
+          print("公式ページ取得成功")
+          print("文字数:", len(response.text))
+          PY
+
+      - name: 公式PDF一覧を作成
+        run: |
+          python - <<'PY'
+          import json
+          import requests
+          from bs4 import BeautifulSoup
+          from urllib.parse import urljoin
+
+          page_url = "https://www.meitetsu.co.jp/train/timetable/"
+
+          with open(
+              "data/meitetsu_timetable.html",
+              "r",
+              encoding="utf-8"
+          ) as f:
+              html = f.read()
+
+          soup = BeautifulSoup(html, "lxml")
+
+          pdfs = []
+
+          for a in soup.find_all("a", href=True):
+
+              href = a["href"]
+
+              if ".pdf" not in href.lower():
+                  continue
+
+              url = urljoin(page_url, href)
+
+              if "meitetsu.co.jp" not in url:
+                  continue
+
+              text = a.get_text(
+                  " ",
+                  strip=True
+              )
+
+              pdfs.append({
+                  "url": url,
+                  "label": text
+              })
+
+          # 重複削除
+          unique = {}
+
+          for item in pdfs:
+              unique[item["url"]] = item
+
+          pdfs = list(unique.values())
+
+          with open(
+              "data/pdf_list.json",
+              "w",
+              encoding="utf-8"
+          ) as f:
+              json.dump(
+                  pdfs,
+                  f,
+                  ensure_ascii=False,
+                  indent=2
+              )
+
+          print("PDF数:", len(pdfs))
+
+          for item in pdfs:
+              print(item["label"])
+              print(item["url"])
+          PY
+
+      - name: 公式PDFを取得
+        run: |
+          python - <<'PY'
+          import json
+          import requests
+          import hashlib
+          import os
+
+          with open(
+              "data/pdf_list.json",
+              "r",
+              encoding="utf-8"
+          ) as f:
+              pdfs = json.load(f)
+
+          os.makedirs(
+              "data/pdfs",
+              exist_ok=True
+          )
+
+          success = 0
+
+          for index, item in enumerate(
+              pdfs,
+              start=1
+          ):
+
+              url = item["url"]
+
+              filename = (
+                  hashlib.sha256(
+                      url.encode("utf-8")
+                  ).hexdigest()[:24]
+                  + ".pdf"
+              )
+
+              path = os.path.join(
+                  "data/pdfs",
+                  filename
+              )
+
+              print(
+                  f"[{index}/{len(pdfs)}]",
+                  url
+              )
+
+              try:
+
+                  r = requests.get(
+                      url,
+                      timeout=120,
+                      headers={
+                          "User-Agent": "Mozilla/5.0"
+                      }
+                  )
+
+                  r.raise_for_status()
+
+                  with open(
+                      path,
+                      "wb"
+                  ) as f:
+                      f.write(r.content)
+
+                  success += 1
+
+              except Exception as e:
+
+                  print(
+                      "取得失敗:",
+                      e
+                  )
+
+          print(
+              "取得成功:",
+              success,
+              "/",
+              len(pdfs)
+          )
+          PY
+
+      - name: PDFの表データを解析
+        run: |
+          python - <<'PY'
+          import os
+          import json
+          import glob
+          import pdfplumber
+
+          output = []
+
+          files = glob.glob(
+              "data/pdfs/*.pdf"
+          )
+
+          print(
+              "解析対象:",
+              len(files),
+              "PDF"
+          )
+
+          for pdf_path in files:
+
+              print(
+                  "解析:",
+                  os.path.basename(pdf_path)
+              )
+
+              try:
+
+                  with pdfplumber.open(
+                      pdf_path
+                  ) as pdf:
+
+                      pages = []
+
+                      for page_number, page in enumerate(
+                          pdf.pages,
+                          start=1
+                      ):
+
+                          # まず表として取得
+                          tables = page.extract_tables()
+
+                          page_tables = []
+
+                          for table in tables:
+
+                              cleaned = []
+
+                              for row in table:
+
+                                  if not row:
+                                      continue
+
+                                  cleaned_row = []
+
+                                  for cell in row:
+
+                                      if cell is None:
+                                          cell = ""
+
+                                      cell = (
+                                          str(cell)
+                                          .replace(
+                                              "\n",
+                                              " "
+                                          )
+                                          .strip()
+                                      )
+
+                                      cleaned_row.append(
+                                          cell
+                                      )
+
+                                  cleaned.append(
+                                      cleaned_row
+                                  )
+
+                              if cleaned:
+                                  page_tables.append(
+                                      cleaned
+                                  )
+
+                          # 表が取れないPDFでも
+                          # テキストは保存する
+                          text = page.extract_text() or ""
+
+                          pages.append({
+                              "page": page_number,
+                              "tables": page_tables,
+                              "text": text
+                          })
+
+                  output.append({
+                      "file": os.path.basename(pdf_path),
+                      "pages": pages
+                  })
+
+              except Exception as e:
+
+                  print(
+                      "解析エラー:",
+                      e
+                  )
+
+          with open(
+              "data/timetable_tables.json",
+              "w",
+              encoding="utf-8"
+          ) as f:
+
+              json.dump(
+                  output,
+                  f,
+                  ensure_ascii=False,
+                  indent=2
+              )
+
+          print(
+              "表解析データを保存しました"
+          )
+          PY
+
+      - name: 列車データを構築
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from datetime import datetime, timezone, timedelta
+
+          INPUT = "data/timetable_tables.json"
+          OUTPUT = "data/timetables.json"
+
+          with open(
+              INPUT,
+              "r",
+              encoding="utf-8"
+          ) as f:
+              pdfs = json.load(f)
+
+          trains = {}
+
+          # 名鉄の列車番号候補
+          train_pattern = re.compile(
+              r"^(?:[0-9]{2,5})(?:[A-Za-z])?$"
+          )
+
+          time_pattern = re.compile(
+              r"^(?:[0-2]?[0-9]):[0-5][0-9]$"
+          )
+
+          def normalize(value):
+
+              if value is None:
+                  return ""
+
+              return (
+                  str(value)
+                  .replace(
+                      "\u3000",
+                      " "
+                  )
+                  .strip()
+              )
+
+          def looks_like_train_number(value):
+
+              value = normalize(value)
+
+              if not value:
+                  return False
+
+              return bool(
+                  train_pattern.match(value)
+              )
+
+          def looks_like_time(value):
+
+              value = normalize(value)
+
+              return bool(
+                  time_pattern.match(value)
+              )
+
+          for pdf in pdfs:
+
+              pdf_name = pdf.get(
+                  "file",
+                  ""
+              )
+
+              for page in pdf.get(
+                  "pages",
+                  []
+              ):
+
+                  for table in page.get(
+                      "tables",
+                      []
+                  ):
+
+                      if not table:
+                          continue
+
+                      # 各表の列を調査
+                      max_columns = max(
+                          len(row)
+                          for row in table
+                      )
+
+                      for column in range(
+                          max_columns
+                      ):
+
+                          values = []
+
+                          for row in table:
+
+                              if column >= len(row):
+                                  values.append("")
+                              else:
+                                  values.append(
+                                      normalize(
+                                          row[column]
+                                      )
+                                  )
+
+                          # 列の中から列車番号を探す
+                          train_indexes = []
+
+                          for index, value in enumerate(
+                              values
+                          ):
+
+                              if looks_like_train_number(
+                                  value
+                              ):
+
+                                  # 短すぎる数字は除外
+                                  if value.isdigit():
+
+                                      if int(value) < 100:
+                                          continue
+
+                                  train_indexes.append(
+                                      index
+                                  )
+
+                          for train_index in train_indexes:
+
+                              train_number = values[
+                                  train_index
+                              ]
+
+                              key = (
+                                  train_number
+                                  + "_"
+                                  + pdf_name
+                              )
+
+                              if key not in trains:
+
+                                  trains[key] = {
+                                      "trainNumber":
+                                          train_number,
+
+                                      "type": "",
+
+                                      "destination":
+                                          "",
+
+                                      "origin":
+                                          "",
+
+                                      "route":
+                                          "",
+
+                                      "sourcePdf":
+                                          pdf_name,
+
+                                      "stations":
+                                          []
+                                  }
+
+                              train = trains[key]
+
+                              # 同じ列を上から確認
+                              for row_index, row in enumerate(
+                                  table
+                              ):
+
+                                  if train_index >= len(row):
+                                      continue
+
+                                  value = normalize(
+                                      row[train_index]
+                                  )
+
+                                  if not looks_like_time(
+                                      value
+                                  ):
+                                      continue
+
+                                  # 左側のセルから駅名候補を探す
+                                  station = ""
+
+                                  for left in range(
+                                      train_index - 1,
+                                      -1,
+                                      -1
+                                  ):
+
+                                      if left >= len(row):
+                                          continue
+
+                                      candidate = normalize(
+                                          row[left]
+                                      )
+
+                                      if not candidate:
+                                          continue
+
+                                      if looks_like_time(
+                                          candidate
+                                      ):
+                                          continue
+
+                                      if looks_like_train_number(
+                                          candidate
+                                      ):
+                                          continue
+
+                                      station = candidate
+                                      break
+
+                                  if not station:
+                                      continue
+
+                                  train["stations"].append({
+                                      "station":
+                                          station,
+
+                                      "time":
+                                          value
+                                  })
+
+          # 重複した駅時刻を整理
+          for train in trains.values():
+
+              unique = []
+
+              seen = set()
+
+              for stop in train["stations"]:
+
+                  key = (
+                      stop["station"],
+                      stop["time"]
+                  )
+
+                  if key in seen:
+                      continue
+
+                  seen.add(key)
+                  unique.append(stop)
+
+              train["stations"] = unique
+
+          jst = timezone(
+              timedelta(hours=9)
+          )
+
+          result = {
+              "revision": "2026-03-14",
+
+              "generatedAt":
+                  datetime.now(
+                      jst
+                  ).isoformat(),
+
+              "source":
+                  "名古屋鉄道公式時刻表",
+
+              "trainCount":
+                  len(trains),
+
+              "trains":
+                  list(
+                      trains.values()
+                  )
+          }
+
+          with open(
+              OUTPUT,
+              "w",
+              encoding="utf-8"
+          ) as f:
+
+              json.dump(
+                  result,
+                  f,
+                  ensure_ascii=False,
+                  indent=2
+              )
+
+          print(
+              "生成列車数:",
+              len(trains)
+          )
+
+          print(
+              "保存:",
+              OUTPUT
+          )
+          PY
+
+      - name: データ生成結果を確認
+        run: |
+          echo "=============================="
+          echo "生成データ"
+          echo "=============================="
+
+          if [ ! -f data/timetables.json ]; then
+            echo "ERROR: timetables.json がありません"
+            exit 1
+          fi
+
+          python - <<'PY'
+          import json
+
+          with open(
+              "data/timetables.json",
+              "r",
+              encoding="utf-8"
+          ) as f:
+              data = json.load(f)
+
+          trains = data.get(
+              "trains",
+              []
+          )
+
+          print(
+              "列車データ:",
+              len(trains)
+          )
+
+          # 最初の5件を確認
+          for train in trains[:5]:
+
+              print(
+                  train.get(
+                      "trainNumber"
+                  ),
+                  train.get(
+                      "type"
+                  ),
+                  train.get(
+                      "destination"
+                  ),
+                  "駅数:",
+                  len(
+                      train.get(
+                          "stations",
+                          []
+                      )
+                  )
+              )
+
+          if len(trains) == 0:
+
+              print(
+                  "ERROR: 列車データが0件です"
+              )
+
+              raise SystemExit(1)
+          PY
+
+      - name: GitHubへ保存
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add data/
+
+          if git diff --cached --quiet; then
+            echo "変更はありません"
+          else
+            git commit -m "名鉄公式時刻表データを更新"
+            git push
+          fi
