@@ -1,33 +1,36 @@
-名鉄時刻表・全PDF対応修正版
+MEITETSU Operation Web v6.2 - PWA / Driver Display対応版
 
-今回の修正版は、data/pdfs/ に入っている「すべての .pdf」を順番に解析します。
-今回送っていただいた 03cf01cb948c552103c5857a.pdf 専用の処理ではありません。
+■ 今回の対応
+- PWA (manifest.webmanifest) 対応
+- iPhone / iPadでホーム画面に追加して起動した場合、Safariのアドレスバー等を表示しないスタンドアロン表示
+- Windows等でPWAとしてインストールした場合もアプリ風表示
+- 列車詳細画面を開く操作からFullscreen APIが利用できるブラウザでは全画面化を試行
+- 横向き画面では、左に運転表示・時刻表、右に時計・記事を配置するドライバー表示風レイアウト
+- safe-area (iPhone/iPadのノッチ等) 対応
+- Service Workerで基本ファイルをキャッシュし、時刻表JSONはネットワーク優先
+- 前回のPDF座標解析v8（文字化け・重複数字・列ずれ対策）を統合
 
-修正内容
-- 名鉄公式時刻表PDFの左右ミラー配置（2面付け）に対応
-- 40列前後の大きな時刻表、3列程度の小さな時刻表の両方に対応
-- 「列車番号」行を基準に列を自動検出
-- 3桁列車番号（104、110、114など）を時刻と誤認しないよう修正
-- μＳ / μμＳＳ などのミュースカイ表記を統一
-- PDFの文字重複（例: 774466 → 746、豊豊橋橋 → 豊橋）を補正
-- 「着」「発」が別行になる駅にも対応
-- 駅名の文字化け・途中切れを抑制
-- 複数PDFにまたがる同一列車の連続区間を、接続駅と時刻を見て自動結合
-- PDFが0件/異常に少ない場合は timetables.json を上書きしない
-- GitHub Actionsで全PDFをまとめて処理
-- app.js側でも重複列車番号がある場合、現在時刻・路線を考慮して候補を選択
-- app.js側でも古いJSONに残った重複文字を表示時に補正
+■ GitHubへ入れるファイル
+このZIP内の以下をリポジトリへコピーしてください。
+  index.html
+  style.css
+  app.js
+  manifest.webmanifest
+  sw.js
+  icon.svg
+  icon-180.png
+  scripts/build_timetable.py
+  .github/workflows/update-timetable.yml
 
-GitHubへの配置
-1. scripts/build_timetable.py を置き換える
-2. app.js を置き換える
-3. .github/workflows/update-timetable.yml を置き換える
-4. data/pdfs/ はそのまま。中にあるPDFは削除しない
-5. GitHub → Actions → Update Meitetsu Timetable → Run workflow
+既存の data/pdfs/ はそのまま残してください。
 
-重要
-このプログラムは data/pdfs/ 内の全PDFを読みます。
-PDFを追加した場合も、同じフォルダに置くだけで対象になります。
+■ GitHub Actions
+Actions → Update Meitetsu Timetable → Run workflow
+を実行すると、data/pdfs/ 内のPDFを解析して data/timetables.json を更新します。
 
-今回のPDF単体テストでは、403列車を生成できました。
-μ.Sky相当のデータも16列車確認しています。
+■ iPhone / iPad
+SafariでGitHub Pagesを開く → 共有 → ホーム画面に追加 → ホーム画面のアイコンから起動。
+通常のSafariタブからSafariのUIそのものをJavaScriptで強制的に消すことはiOSの制限があります。PWA起動が推奨です。
+
+■ 注意
+この版の「現在位置」「運行状態」はシミュレーションです。自動音声放送はありません。
