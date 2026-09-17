@@ -1,547 +1,145 @@
-import os
-import re
-import json
-import hashlib
+import os, re, json, hashlib
 from datetime import datetime, timezone
-
 import pdfplumber
-
 
 PDF_DIR = "data/pdfs"
 OUTPUT = "data/timetables.json"
+TRAIN_TYPES = ["ミュースカイ","快速特急","特急","快速急行","急行","準急","普通"]
+TRAIN_NUMBER_RE = re.compile(r"^\d{1,5}[A-Z]?$", re.I)
+TIME_RE = re.compile(r"^\d{1,2}:?\d{2}$")
+ROUTES = ["名古屋本線","豊川線","津島線","尾西線","竹鼻線","羽島線","常滑線","空港線","河和線","知多新線","犬山線","各務原線","広見線","小牧線","三河線","豊田線","西尾線","蒲郡線","瀬戸線"]
+HEADERS = {"列車番号","列車種別","種別","行先","行先駅","発","着","時刻","駅名","駅"}
 
-TRAIN_NUMBER_RE = re.compile(r"^\d{1,5}[A-Z]?$")
-TIME_RE = re.compile(r"^\d{1,2}:\d{2}$|^\d{3,4}$")
+def clean(v):
+    return re.sub(r"\s+", " ", str(v or "").replace("\n"," ").replace("\r"," ")).strip()
 
-
-def clean_text(value):
-    if value is None:
-        return ""
-
-    value = str(value)
-    value = value.replace("\n", " ")
-    value = value.replace("\r", " ")
-    value = re.sub(r"\s+", " ", value)
-
-    return value.strip()
-
-
-def normalize_time(value):
-    """
-    PDFから取得した時刻を HH:MM に統一する。
-    例:
-      530   -> 5:30
-      1234  -> 12:34
-      5:30  -> 5:30
-    """
-    value = clean_text(value)
-
-    if not value:
-        return ""
-
-    if re.match(r"^\d{1,2}:\d{2}$", value):
-        h, m = value.split(":")
-        return f"{int(h)}:{m}"
-
-    if re.match(r"^\d{3,4}$", value):
-        if len(value) == 3:
-            h = int(value[0])
-            m = value[1:]
-        else:
-            h = int(value[:2])
-            m = value[2:]
-
-        if 0 <= h <= 29 and 0 <= int(m) <= 59:
-            return f"{h}:{m}"
-
+def norm_time(v):
+    s=clean(v).replace("：",":")
+    if re.fullmatch(r"\d{1,2}:\d{2}",s):
+        h,m=s.split(":")
+        if 0<=int(h)<=29 and 0<=int(m)<=59:return f"{int(h)}:{m}"
+    if re.fullmatch(r"\d{3,4}",s):
+        h=int(s[:-2]); m=int(s[-2:])
+        if 0<=h<=29 and 0<=m<=59:return f"{h}:{m:02d}"
     return ""
 
+def is_num(s): return bool(re.fullmatch(r"\d+(?:\.\d+)?",clean(s)))
+def is_train(s): return bool(TRAIN_NUMBER_RE.fullmatch(clean(s)))
+def is_time(s): return bool(norm_time(s))
 
-def is_train_number(value):
-    value = clean_text(value)
-
-    if not value:
-        return False
-
-    return bool(TRAIN_NUMBER_RE.match(value))
-
-
-def is_time(value):
-    return bool(normalize_time(value))
-
-
-def detect_train_numbers(table):
-    """
-    表の中から列車番号を含むセルを探す。
-    戻り値:
-      [
-        {
-          "row": 行番号,
-          "col": 列番号,
-          "number": "299"
-        }
-      ]
-    """
-
-    found = []
-
-    for r, row in enumerate(table):
-        if not row:
-            continue
-
-        for c, cell in enumerate(row):
-            text = clean_text(cell)
-
-            if not is_train_number(text):
-                continue
-
-            found.append(
-                {
-                    "row": r,
-                    "col": c,
-                    "number": text,
-                }
-            )
-
-    return found
-
-
-def find_row_by_keywords(table, keywords, start_row=0, end_row=None):
-    if end_row is None:
-        end_row = len(table)
-
-    for r in range(start_row, min(end_row, len(table))):
-        row = table[r]
-
-        joined = " ".join(clean_text(x) for x in row if x is not None)
-
-        for keyword in keywords:
-            if keyword in joined:
-                return r
-
-    return None
-
-
-def get_cell(table, row, col):
-    if row < 0 or row >= len(table):
-        return ""
-
-    current = table[row]
-
-    if col < 0 or col >= len(current):
-        return ""
-
-    return clean_text(current[col])
-
-
-def extract_station_name(row):
-    """
-    駅名が左側にある一般的なPDF表を想定。
-    """
-    if not row:
-        return ""
-
-    values = [clean_text(x) for x in row]
-
-    # 空欄を除外
-    values = [x for x in values if x]
-
-    if not values:
-        return ""
-
-    return values[0]
-
-
-def extract_route_from_filename(filename):
-    """
-    PDFファイル名から路線を推定できる場合だけ使用。
-    ハッシュ名の場合は空文字。
-    """
-    name = filename
-
-    route_keywords = [
-        "名古屋本線",
-        "豊川線",
-        "津島線",
-        "尾西線",
-        "竹鼻線",
-        "羽島線",
-        "常滑線",
-        "空港線",
-        "河和線",
-        "知多新線",
-        "犬山線",
-        "各務原線",
-        "広見線",
-        "小牧線",
-        "三河線",
-        "豊田線",
-        "西尾線",
-        "蒲郡線",
-        "瀬戸線",
-    ]
-
-    for route in route_keywords:
-        if route in name:
-            return route
-
+def crew(route):
+    if any(x in route for x in ["名古屋本線","豊川線","津島線","尾西線","竹鼻線","羽島線"]): return "名古屋乗務区"
+    if any(x in route for x in ["常滑線","空港線","河和線","知多新線"]): return "神宮前乗務区"
+    if any(x in route for x in ["犬山線","各務原線","広見線","小牧線"]): return "犬山乗務区"
+    if any(x in route for x in ["三河線","豊田線","西尾線","蒲郡線"]): return "知立乗務区"
+    if "瀬戸線" in route: return "瀬戸運輸区"
     return ""
 
-
-def crew_for_route(route):
-    if not route:
-        return ""
-
-    if any(
-        x in route
-        for x in [
-            "名古屋本線",
-            "豊川線",
-            "津島線",
-            "尾西線",
-            "竹鼻線",
-            "羽島線",
-        ]
-    ):
-        return "名古屋乗務区"
-
-    if any(
-        x in route
-        for x in [
-            "常滑線",
-            "空港線",
-            "河和線",
-            "知多新線",
-        ]
-    ):
-        return "神宮前乗務区"
-
-    if any(
-        x in route
-        for x in [
-            "犬山線",
-            "各務原線",
-            "広見線",
-            "小牧線",
-        ]
-    ):
-        return "犬山乗務区"
-
-    if any(
-        x in route
-        for x in [
-            "三河線",
-            "豊田線",
-            "西尾線",
-            "蒲郡線",
-        ]
-    ):
-        return "知立乗務区"
-
-    if "瀬戸線" in route:
-        return "瀬戸運輸区"
-
+def route_from_text(text, filename):
+    for r in ROUTES:
+        if r in text or r in filename: return r
     return ""
 
+def row_values(row): return [clean(x) for x in (row or [])]
 
-def extract_train_from_column(
-    table,
-    train_row,
-    train_col,
-    train_number,
-    pdf_name,
-    page_number,
-):
-    """
-    列車番号が見つかった列を縦方向に追跡する。
-    """
+def station_from_row(row):
+    vals=row_values(row)
+    for v in vals:
+        if not v or v in HEADERS or is_time(v) or is_num(v) or is_train(v): continue
+        if v in TRAIN_TYPES: continue
+        # Track/platform numbers and common PDF symbols are not station names.
+        if re.fullmatch(r"[0-9A-Za-z\-+./]+",v): continue
+        if len(v)>1: return v
+    return ""
 
-    train_type = ""
-    destination = ""
-    origin = ""
-    stops = []
+def nearby_meta(table, r, c):
+    typ=""; dest=""
+    # Same row has the strongest relationship in many Meitetsu timetable layouts.
+    candidates=[]
+    for cc,v in enumerate(row_values(table[r])):
+        if cc==c or not v: continue
+        candidates.append(v)
+    for v in candidates:
+        if v in TRAIN_TYPES: typ=v
+    # Search a narrow neighborhood, but never scan an entire page for metadata.
+    for rr in range(max(0,r-3), min(len(table),r+4)):
+        for v in row_values(table[rr]):
+            if v in TRAIN_TYPES: typ=v
+    # Destination is usually a Japanese station name near the train number.
+    for v in candidates:
+        if v in HEADERS or v in TRAIN_TYPES or is_time(v) or is_num(v) or is_train(v): continue
+        if re.fullmatch(r"[0-9A-Za-z\-+./]+",v): continue
+        dest=v; break
+    return typ,dest
 
-    # 列車番号より下側を解析
-    start = train_row + 1
+def extract(table, r0, c0, number, pdf, page, route):
+    typ,dest=nearby_meta(table,r0,c0)
+    stops=[]
+    # Track the same x-column, but reject header/track garbage and stop at another train-number row.
+    for r in range(r0+1,len(table)):
+        row=table[r] or []
+        if any(is_train(x) for x in row): break
+        station=station_from_row(row)
+        if not station: continue
+        if c0>=len(row): continue
+        t=norm_time(row[c0])
+        if not t: continue
+        # Keep chronological sequence; midnight crossings are handled by allowing one wrap.
+        if stops:
+            prev=sum(map(int,stops[-1]["time"].split(":")))
+            cur=sum(map(int,t.split(":")))
+            if cur+24*60 < prev: continue
+            if cur < prev-5: continue
+        stops.append({"station":station,"time":t})
+    if len(stops)<2: return None
+    if not dest: dest=stops[-1]["station"]
+    if not typ: typ="普通"
+    # Remove accidental duplicate station/time pairs.
+    clean_st=[]
+    seen=set()
+    for s in stops:
+        key=(s["station"],s["time"])
+        if key not in seen: clean_st.append(s); seen.add(key)
+    if len(clean_st)<2:return None
+    ident=hashlib.sha1(f"{number}|{pdf}|{page}|{c0}|{clean_st[0]['time']}|{clean_st[-1]['time']}".encode()).hexdigest()
+    return {"id":ident,"trainNumber":number,"type":typ,"origin":clean_st[0]["station"],"destination":dest,"route":route,"crew":crew(route),"pdf":pdf,"page":page,"stops":clean_st}
 
-    # 種別・行先を探す
-    for r in range(start, min(start + 8, len(table))):
-        value = get_cell(table, r, train_col)
-
-        if not value:
-            continue
-
-        # 時刻なら種別・行先ではない
-        if is_time(value):
-            continue
-
-        # よくある種別
-        if value in [
-            "ミュースカイ",
-            "快速特急",
-            "特急",
-            "快速急行",
-            "急行",
-            "準急",
-            "普通",
-        ]:
-            train_type = value
-            continue
-
-        # 「種別」という文字そのものは除外
-        if value in ["種別", "列車種別", "列車"]:
-            continue
-
-        # 行先候補
-        if not destination:
-            destination = value
-
-    # 駅・時刻を解析
-    for r in range(start, len(table)):
-        row = table[r]
-
-        if not row:
-            continue
-
-        station = extract_station_name(row)
-
-        if not station:
-            continue
-
-        # 列車番号そのものが再び現れたら別の列車
-        if station == train_number:
-            continue
-
-        time_value = get_cell(table, r, train_col)
-        time_value = normalize_time(time_value)
-
-        if not time_value:
-            continue
-
-        # 駅名として明らかに不適切なものを除外
-        if station in [
-            "列車番号",
-            "種別",
-            "行先",
-            "発",
-            "着",
-            "時刻",
-        ]:
-            continue
-
-        stops.append(
-            {
-                "station": station,
-                "time": time_value,
-            }
-        )
-
-    # 最初の停車駅を始発駅として扱う
-    if stops:
-        origin = stops[0]["station"]
-
-    if not destination and stops:
-        destination = stops[-1]["station"]
-
-    return {
-        "id": hashlib.sha1(
-            f"{train_number}|{pdf_name}|{page_number}|{train_col}".encode(
-                "utf-8"
-            )
-        ).hexdigest(),
-        "trainNumber": train_number,
-        "type": train_type,
-        "origin": origin,
-        "destination": destination,
-        "route": extract_route_from_filename(pdf_name),
-        "crew": crew_for_route(extract_route_from_filename(pdf_name)),
-        "pdf": pdf_name,
-        "page": page_number,
-        "stops": stops,
-    }
-
-
-def parse_pdf(pdf_path):
-    trains = []
-
-    pdf_name = os.path.basename(pdf_path)
-
-    print(f"解析中: {pdf_name}")
-
+def parse_pdf(path):
+    pdfname=os.path.basename(path); out=[]
     try:
-        with pdfplumber.open(pdf_path) as pdf:
-
-            for page_index, page in enumerate(pdf.pages, start=1):
-
-                try:
-                    tables = page.extract_tables()
+        with pdfplumber.open(path) as pdf:
+            for pageno,page in enumerate(pdf.pages,1):
+                page_text=clean(page.extract_text() or "")
+                route=route_from_text(page_text,pdfname)
+                try: tables=page.extract_tables() or []
                 except Exception as e:
-                    print(
-                        f"  ページ {page_index}: table解析失敗: {e}"
-                    )
-                    continue
-
-                if not tables:
-                    continue
-
+                    print(f"{pdfname} p{pageno}: table error: {e}"); continue
                 for table in tables:
+                    for r,row in enumerate(table):
+                        for c,cell in enumerate(row or []):
+                            n=clean(cell)
+                            if not is_train(n): continue
+                            train=extract(table,r,c,n,pdfname,pageno,route)
+                            if train: out.append(train)
+    except Exception as e: print(f"PDF解析エラー {pdfname}: {e}")
+    return out
 
-                    if not table:
-                        continue
-
-                    found = detect_train_numbers(table)
-
-                    if not found:
-                        continue
-
-                    for item in found:
-
-                        train_number = item["number"]
-
-                        # 299を発見した場合はログに表示
-                        if train_number == "299":
-                            print(
-                                f"  ★ 299発見: "
-                                f"{pdf_name} page={page_index} "
-                                f"row={item['row']} "
-                                f"col={item['col']}"
-                            )
-
-                        train = extract_train_from_column(
-                            table=table,
-                            train_row=item["row"],
-                            train_col=item["col"],
-                            train_number=train_number,
-                            pdf_name=pdf_name,
-                            page_number=page_index,
-                        )
-
-                        # 何らかの駅・時刻が取れたものだけ登録
-                        if train["stops"]:
-                            trains.append(train)
-
-    except Exception as e:
-        print(f"PDF解析エラー: {pdf_name}: {e}")
-
-    return trains
-
-
-def deduplicate(trains):
-    """
-    同じ列車データの重複を除去。
-    """
-    result = []
-    seen = set()
-
-    for train in trains:
-
-        key = (
-            train.get("trainNumber", ""),
-            train.get("type", ""),
-            train.get("origin", ""),
-            train.get("destination", ""),
-            tuple(
-                (
-                    x.get("station", ""),
-                    x.get("time", ""),
-                )
-                for x in train.get("stops", [])
-            ),
-        )
-
-        if key in seen:
-            continue
-
-        seen.add(key)
-        result.append(train)
-
-    return result
-
+def dedupe(trains):
+    seen=set(); out=[]
+    for t in trains:
+        key=(t["trainNumber"],t["type"],t["origin"],t["destination"],tuple((x["station"],x["time"]) for x in t["stops"]))
+        if key not in seen: seen.add(key); out.append(t)
+    return out
 
 def main():
+    os.makedirs("data",exist_ok=True)
+    files=sorted(os.path.join(PDF_DIR,x) for x in os.listdir(PDF_DIR) if x.lower().endswith(".pdf")) if os.path.isdir(PDF_DIR) else []
+    all_trains=[]
+    for f in files: all_trains.extend(parse_pdf(f))
+    all_trains=dedupe(all_trains)
+    all_trains.sort(key=lambda x:(int(re.match(r"\d+",x["trainNumber"]).group()) if re.match(r"\d+",x["trainNumber"]) else 999999,x["trainNumber"],x["origin"],x["stops"][0]["time"] if x["stops"] else ""))
+    data={"version":4,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains}
+    with open(OUTPUT,"w",encoding="utf-8") as f: json.dump(data,f,ensure_ascii=False,indent=2)
+    print(f"PDF数: {len(files)} / 列車データ: {len(all_trains)} / 299: {sum(1 for x in all_trains if x['trainNumber']=='299')}")
 
-    os.makedirs("data", exist_ok=True)
-
-    if not os.path.isdir(PDF_DIR):
-        print(f"PDFフォルダがありません: {PDF_DIR}")
-        return
-
-    pdf_files = [
-        os.path.join(PDF_DIR, name)
-        for name in os.listdir(PDF_DIR)
-        if name.lower().endswith(".pdf")
-    ]
-
-    pdf_files.sort()
-
-    print(f"PDF数: {len(pdf_files)}")
-
-    all_trains = []
-
-    for pdf_path in pdf_files:
-        trains = parse_pdf(pdf_path)
-        all_trains.extend(trains)
-
-    all_trains = deduplicate(all_trains)
-
-    # 列車番号順に並べる
-    all_trains.sort(
-        key=lambda x: (
-            x.get("trainNumber", ""),
-            x.get("pdf", ""),
-            x.get("page", 0),
-        )
-    )
-
-    output = {
-        "version": 3,
-        "updatedAt": datetime.now(timezone.utc).isoformat(),
-        "source": "名古屋鉄道公式時刻表",
-        "sourceUrl": "https://www.meitetsu.co.jp/train/timetable/",
-        "trainCount": len(all_trains),
-        "trains": all_trains,
-    }
-
-    with open(
-        OUTPUT,
-        "w",
-        encoding="utf-8",
-    ) as f:
-        json.dump(
-            output,
-            f,
-            ensure_ascii=False,
-            indent=2,
-        )
-
-    print()
-    print("======================================")
-    print(f"列車データ: {len(all_trains)}件")
-    print(f"出力: {OUTPUT}")
-    print("======================================")
-
-    # 299の最終確認
-    train_299 = [
-        x
-        for x in all_trains
-        if x.get("trainNumber") == "299"
-    ]
-
-    print()
-    print(f"299の登録件数: {len(train_299)}")
-
-    for train in train_299[:10]:
-        print(
-            "299:",
-            train.get("type"),
-            train.get("origin"),
-            "→",
-            train.get("destination"),
-            "停車駅",
-            len(train.get("stops", [])),
-            "駅",
-        )
-
-
-if __name__ == "__main__":
-    main()
+if __name__=="__main__": main()
