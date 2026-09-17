@@ -1,3 +1,5 @@
+MEITETSU Operation Web PWA v4（iPad 1x表示・時計切れ修正版）
+
 MEITETSU Operation Web v6.2 - PWA / Driver Display対応版
 
 ■ 今回の対応
