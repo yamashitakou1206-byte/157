@@ -39,22 +39,13 @@ def normalize_type(value):
     value = clean(value).replace(" ", "")
     if not value:
         return ""
-    # PDFでは同じ字形が連続して抽出されることがある。
-    # 種別だけは安全に既知の表記へ寄せる。
-    aliases = {
-        "普普":"普通", "準準":"準急", "急急":"急行",
-        "特特":"特急", "快快急急":"快速急行", "快速快速急行":"快速急行",
-        "快快特特":"快速特急", "快速快速特急":"快速特急",
-        "μS":"ミュースカイ", "μＳ":"ミュースカイ",
-        "μμSS":"ミュースカイ", "μμＳＳ":"ミュースカイ",
-        "μμSky":"ミュースカイ", "μμＳｋｙ":"ミュースカイ",
-    }
-    if value in aliases:
-        return aliases[value]
+    # Common PDF glyph duplication / full-width variants.
     if "μ" in value and ("Ｓ" in value or "S" in value):
         return "ミュースカイ"
     value = value.replace("ｓ", "s").replace("Ｓ", "S")
-    return TYPE_MAP.get(value, aliases.get(value, ""))
+    if value in ("μμSS", "μμＳＳ"):
+        return "ミュースカイ"
+    return TYPE_MAP.get(value, "")
 
 
 def collapse_duplicate_glyphs(s):
@@ -176,18 +167,16 @@ def nearest_type_row(rows, number_top, columns):
     return None, []
 
 
-def is_pass_word(value):
-    return clean(value).replace(" ", "") in {"レ", "ﾚ"}
-
-def cell_event_word(words, x, left, right):
+def cell_word(words, x, left, right):
     candidates = []
     for w in words:
         cx = (w["x0"] + w["x1"]) / 2
         if left <= cx < right:
             candidates.append(w)
-    events = [w for w in candidates if norm_time(w["text"]) or is_pass_word(w["text"])]
-    if events:
-        return min(events, key=lambda w: abs(((w["x0"]+w["x1"]) / 2)-x))
+    # Prefer an actual time token, then the closest token.
+    times = [w for w in candidates if norm_time(w["text"])]
+    if times:
+        return min(times, key=lambda w: abs(((w["x0"]+w["x1"])/2)-x))
     return None
 
 
@@ -370,19 +359,18 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
             label=current_station
         if not label:
             continue
-        # 通過記号「レ」もイベントとして保持する。
-        event_words=[w for w in row if norm_time(w["text"]) or is_pass_word(w["text"])]
-        if not event_words:
+        # Only process rows with at least one valid time in this panel.
+        time_words=[w for w in row if norm_time(w["text"])]
+        if not time_words:
             continue
         for i,c in enumerate(columns):
             left,right=bounds[i]
-            w=cell_event_word(event_words,c["x"],left,right)
+            w=cell_word(time_words,c["x"],left,right)
             if not w:
                 continue
             tm=norm_time(w["text"])
-            passed=is_pass_word(w["text"])
-            if tm or passed:
-                events[i].append({"station":label,"time":tm,"pass":passed,"kind":marker or "same","top":top})
+            if tm:
+                events[i].append({"station":label,"time":tm,"kind":marker or "same","top":top})
 
     route=route_from_text(page_text(words),filename)
     trains=[]
@@ -402,29 +390,20 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
                 old=by_station[st]
                 if e["kind"]=="departure" or old["kind"] not in ("departure",):
                     by_station[st]=e
-        stops=[]
-        for st in order:
-            e=by_station[st]
-            stops.append({"station":st,"time":e.get("time", ""),"pass":bool(e.get("pass", False))})
+        stops=[{"station":st,"time":by_station[st]["time"]} for st in order]
         if len(stops)<2:
             continue
-        # 時刻の抽出ミス1件で列車全体を捨てない。異常な逆行時刻だけ除外して
-        # 残りの駅列を保持する。通過「レ」は時刻なしでも保持する。
-        fixed=[]; prev=None; day=0
+        # Validate chronological order, allowing one midnight rollover.
+        mins=[]; ok=True; day=0; prev=None
         for s in stops:
-            tm=s.get("time","")
-            if not tm:
-                fixed.append(s); continue
-            h,m=map(int,tm.split(":")); v=h*60+m+day
+            h,m=map(int,s["time"].split(":")); v=h*60+m+day
             if prev is not None and v < prev:
-                if prev-v <= 180:
+                if prev-v <= 180: # midnight crossing in normal timetable range
                     day += 1440; v += 1440
                 else:
-                    # PDFの列ずれ等による異常値。列車を丸ごと破棄しない。
-                    continue
-            fixed.append(s); prev=v
-        stops=fixed
-        if len(stops)<2:
+                    ok=False; break
+            mins.append(v); prev=v
+        if not ok:
             continue
         dest=destinations[i] or stops[-1]["station"]
         ident_raw=f"{c['number']}|{types[i]}|{stops[0]['station']}|{dest}|{filename}|{page_number}|{i}|{stops[0]['time']}|{stops[-1]['time']}"
@@ -441,7 +420,6 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
             "pdf":filename,
             "page":page_number,
             "stops":stops,
-        "passCount":sum(1 for s in stops if s.get("pass")),
         })
     return trains
 
@@ -521,7 +499,10 @@ def sort_key(t):
 
 
 def time_minutes(t):
-    h,m=map(int,t.split(":")); return h*60+m
+    # Empty/invalid cells (including pass-through-only markers) must not abort merging.
+    if not t or not re.fullmatch(r"\d{1,2}:\d{2}", str(t)):
+        return None
+    h,m=map(int,str(t).split(":")); return h*60+m
 
 
 def merge_segments(trains):
@@ -549,7 +530,11 @@ def merge_segments(trains):
                     if i==j or j in used: continue
                     b_start=b["stops"][0]
                     if a_end["station"] != b_start["station"]: continue
-                    gap=time_minutes(b_start["time"])-time_minutes(a_end["time"])
+                    ta=time_minutes(a_end.get("time"))
+                    tb=time_minutes(b_start.get("time"))
+                    if ta is None or tb is None:
+                        continue
+                    gap=tb-ta
                     if gap < 0: gap += 1440
                     if gap > 120: continue
                     # Prefer a segment with a different route and a later endpoint.
@@ -605,7 +590,7 @@ def main():
         type_counts[t["type"]]=type_counts.get(t["type"],0)+1
         d=t.get("dayType","unknown")
         day_counts[d]=day_counts.get(d,0)+1
-    data={"version":11,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v11-pass-second","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"]}
+    data={"version":10,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v10-daytype","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"]}
     fd,tmp=tempfile.mkstemp(prefix='timetables.',suffix='.json',dir=os.path.dirname(OUTPUT))
     try:
         with os.fdopen(fd,'w',encoding='utf-8') as f:
