@@ -5,6 +5,7 @@ import pdfplumber
 PDF_DIR = "data/pdfs"
 OUTPUT = "data/timetables.json"
 MIN_TRAIN_COUNT = 10
+DAY_TYPES = ("weekday", "holiday")
 
 ROUTES = [
     "名古屋本線","豊川線","津島線","尾西線","竹鼻線","羽島線",
@@ -292,7 +293,7 @@ def destination_for_columns(rows, type_top, columns, panel):
     return dest
 
 
-def parse_panel(rows, words, filename, page_number, anchor, number_top, number_words, group, page_height):
+def parse_panel(rows, words, filename, page_number, anchor, number_top, number_words, group, page_height, day_type):
     columns = [{"number": clean(w["text"]), "x": (w["x0"]+w["x1"])/2} for w in group]
     columns.sort(key=lambda c:c["x"])
     type_top, type_words = nearest_type_row(rows, number_top, columns)
@@ -388,6 +389,7 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
         ident=hashlib.sha1(ident_raw.encode()).hexdigest()
         trains.append({
             "id":ident,
+            "dayType":day_type,
             "trainNumber":c["number"],
             "type":types[i] or "普通",
             "origin":stops[0]["station"],
@@ -405,9 +407,27 @@ def page_text(words):
     return " ".join(clean(w["text"]) for w in words)
 
 
+def detect_day_type(text, filename=""):
+    """Detect the official timetable service-day category from page/file text.
+    Returns weekday, holiday, or unknown when the PDF does not expose a clear label.
+    """
+    raw = clean(text) + " " + clean(filename)
+    compact = re.sub(r"\s+", "", raw)
+    # Holiday wording is checked first because some headings contain both
+    # generic weekday/holiday words in surrounding notes.
+    holiday_patterns = ["土休日", "土・休日", "土曜休日", "土曜", "日曜", "休日"]
+    weekday_patterns = ["平日"]
+    if any(x in compact for x in holiday_patterns):
+        return "holiday"
+    if any(x in compact for x in weekday_patterns):
+        return "weekday"
+    return "unknown"
+
+
 def parse_page(page, filename, page_number):
     words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
     rows=group_rows(words)
+    day_type=detect_day_type(page_text(words), filename)
     anchors=find_header_anchors(rows)
     if not anchors:
         return []
@@ -425,7 +445,7 @@ def parse_page(page, filename, page_number):
             gx=sum((w["x0"]+w["x1"])/2 for w in group)/len(group)
             if abs(gx-anchor["x"]) < 25:
                 continue
-            all_trains.extend(parse_panel(rows,words,filename,page_number,anchor,number_top,nums,group,page.height))
+            all_trains.extend(parse_panel(rows,words,filename,page_number,anchor,number_top,nums,group,page.height,day_type))
     return all_trains
 
 
@@ -446,7 +466,7 @@ def parse_pdf(path):
 def dedupe(trains):
     seen=set(); out=[]
     for t in trains:
-        key=(t["trainNumber"],t["type"],t["origin"],t["destination"],tuple((s["station"],s["time"]) for s in t["stops"]))
+        key=(t.get("dayType","unknown"),t["trainNumber"],t["type"],t["origin"],t["destination"],tuple((s["station"],s["time"]) for s in t["stops"]))
         if key in seen: continue
         seen.add(key); out.append(t)
     return out
@@ -466,7 +486,9 @@ def merge_segments(trains):
     end station/time of one segment connects to the start station/time of the
     next segment. This lets a train continue across separate official PDFs."""
     by_number={}
-    for t in trains: by_number.setdefault(t["trainNumber"], []).append(t)
+    for t in trains:
+        key=(t.get("dayType","unknown"), t["trainNumber"])
+        by_number.setdefault(key, []).append(t)
     merged=[]
     for number, items in by_number.items():
         items=list(items)
@@ -522,8 +544,12 @@ def main():
     if len(all_trains)<MIN_TRAIN_COUNT:
         raise RuntimeError(f"解析結果が少なすぎます: {len(all_trains)}件 < {MIN_TRAIN_COUNT}件。既存のtimetables.jsonは更新しません。")
     type_counts={}
-    for t in all_trains: type_counts[t["type"]]=type_counts.get(t["type"],0)+1
-    data={"version":8,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v8","typeCounts":type_counts}
+    day_counts={"weekday":0,"holiday":0,"unknown":0}
+    for t in all_trains:
+        type_counts[t["type"]]=type_counts.get(t["type"],0)+1
+        d=t.get("dayType","unknown")
+        day_counts[d]=day_counts.get(d,0)+1
+    data={"version":9,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v9-daytype","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"]}
     fd,tmp=tempfile.mkstemp(prefix='timetables.',suffix='.json',dir=os.path.dirname(OUTPUT))
     try:
         with os.fdopen(fd,'w',encoding='utf-8') as f: json.dump(data,f,ensure_ascii=False,indent=2); f.write('\n')
@@ -533,5 +559,6 @@ def main():
     print(f"Generated trains: {len(all_trains)}")
     print(f"299 count: {sum(1 for t in all_trains if t['trainNumber']=='299')}")
     print(f"Types: {json.dumps(type_counts,ensure_ascii=False)}")
+    print(f"Day types: {json.dumps(day_counts,ensure_ascii=False)}")
 
 if __name__=='__main__': main()
