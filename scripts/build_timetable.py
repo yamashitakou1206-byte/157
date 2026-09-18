@@ -1,4 +1,4 @@
-import os, re, json, hashlib, tempfile, unicodedata
+import os, re, json, hashlib, tempfile, unicodedata, urllib.request, html
 from datetime import datetime, timezone
 import pdfplumber
 
@@ -12,6 +12,71 @@ ROUTES = [
     "常滑線","空港線","河和線","知多新線","犬山線","各務原線",
     "広見線","小牧線","三河線","豊田線","西尾線","蒲郡線","瀬戸線",
 ]
+
+
+# 駅間営業キロの参照先。GitHub Actions実行時に取得し、生成JSONへ埋め込みます。
+# 取得できない路線は、既知のフォールバック値がある場合のみ使用します。
+DISTANCE_LINE_URLS = {
+    "名古屋本線": "https://railway.sidearrow.net/line/detail/e8091cbe",
+    "犬山線": "https://railway.sidearrow.net/line/detail/3edc0e48",
+    "各務原線": "https://railway.sidearrow.net/line/detail/361b4f7a",
+    "小牧線": "https://railway.sidearrow.net/line/detail/074ac952",
+    "河和線": "https://railway.sidearrow.net/line/detail/4d434798",
+    "尾西線": "https://railway.sidearrow.net/line/detail/496a4de0",
+    "三河線": "https://railway.sidearrow.net/line/detail/0b541326",
+    "築港線": "https://railway.sidearrow.net/line/detail/69282bcb",
+    "瀬戸線": "https://railway.sidearrow.net/line/detail/8f1b1536",
+    "広見線": "https://railway.sidearrow.net/line/detail/2ef7f7ac",
+    "常滑線": "https://railway.sidearrow.net/line/detail/ed42608b",
+    "空港線": "https://railway.sidearrow.net/line/detail/d3cd05d6",
+    "豊田線": "https://railway.sidearrow.net/line/detail/8d739085",
+    "知多新線": "https://railway.sidearrow.net/line/detail/0affce69",
+    "蒲郡線": "https://railway.sidearrow.net/line/detail/76c20c6b",
+    "津島線": "https://railway.sidearrow.net/line/detail/4a7d7205",
+}
+
+# 取得失敗時の最小フォールバック。現在のアップロードPDFで使用する2路線を中心に保持。
+DISTANCE_FALLBACK = {
+    ("犬山線", "東枇杷島", "下小田井"): 1.0,
+    ("犬山線", "下小田井", "中小田井"): 1.4,
+    ("犬山線", "中小田井", "上小田井"): 1.1,
+    ("犬山線", "上小田井", "西春"): 2.4,
+    ("犬山線", "西春", "徳重・名古屋芸大"): 1.4,
+    ("犬山線", "徳重・名古屋芸大", "大山寺"): 0.8,
+    ("犬山線", "大山寺", "岩倉"): 1.6,
+    ("犬山線", "岩倉", "石仏"): 2.1,
+    ("犬山線", "石仏", "布袋"): 2.4,
+    ("犬山線", "布袋", "江南"): 2.0,
+    ("犬山線", "江南", "柏森"): 2.8,
+    ("犬山線", "柏森", "扶桑"): 2.2,
+    ("犬山線", "扶桑", "木津用水"): 1.4,
+    ("犬山線", "木津用水", "犬山口"): 1.4,
+    ("犬山線", "犬山口", "犬山"): 0.9,
+    ("犬山線", "犬山", "犬山遊園"): 1.2,
+    ("犬山線", "犬山遊園", "新鵜沼"): 0.7,
+    ("名古屋本線", "金山", "山王"): 1.6,
+    ("名古屋本線", "山王", "名鉄名古屋"): 2.0,
+    ("名古屋本線", "名鉄名古屋", "栄生"): 1.9,
+    ("名古屋本線", "栄生", "東枇杷島"): 0.8,
+    ("各務原線", "新鵜沼", "鵜沼宿"): 1.1,
+    ("各務原線", "鵜沼宿", "羽場"): 1.0,
+    ("各務原線", "羽場", "苧ヶ瀬"): 0.9,
+    ("各務原線", "苧ヶ瀬", "名電各務原"): 0.9,
+    ("各務原線", "名電各務原", "二十軒"): 1.3,
+    ("各務原線", "二十軒", "三柿野"): 1.2,
+    ("各務原線", "三柿野", "六軒"): 1.3,
+    ("各務原線", "六軒", "各務原市役所前"): 1.2,
+    ("各務原線", "各務原市役所前", "市民公園前"): 0.6,
+    ("各務原線", "市民公園前", "新那加"): 0.6,
+    ("各務原線", "新那加", "新加納"): 0.9,
+    ("各務原線", "新加納", "高田橋"): 1.2,
+    ("各務原線", "高田橋", "手力"): 0.6,
+    ("各務原線", "手力", "切通"): 0.9,
+    ("各務原線", "切通", "細畑"): 1.0,
+    ("各務原線", "細畑", "田神"): 1.8,
+    ("各務原線", "田神", "名鉄岐阜"): 1.1,
+}
+
 
 TYPE_MAP = {
     "普通": "普通", "準急": "準急", "急行": "急行",
@@ -239,13 +304,133 @@ def station_marker(row, panel):
     lo, hi = panel["label_range"]
     ws = [w for w in row if lo <= ((w["x0"]+w["x1"])/2) <= hi]
     text = "".join(clean(w["text"]) for w in sorted(ws, key=lambda w:w["x0"]))
-    if "発" in text:
+    return normalize_event_marker(text)
+
+
+def normalize_event_marker(value):
+    v=clean(value).replace(" ", "")
+    if v in {"ﾚ", "レ", "ﾚﾚ", "レレ"} or "ﾚ" in v or "レ" in v:
+        return "pass"
+    if "発" in v:
         return "departure"
-    if "着" in text:
+    if "着" in v:
         return "arrival"
-    if "〃" in text:
+    if "〃" in v:
         return "same"
     return ""
+
+
+def distance_key(a,b):
+    return (clean(a).replace(" ",""), clean(b).replace(" ",""))
+
+
+def distance_between(a,b,route,distance_map):
+    aa,bb=clean(a).replace(" ",""),clean(b).replace(" ","")
+    for r in ([route] if route else []) + [x for x in ROUTES if x != route]:
+        d=distance_map.get((r,aa,bb))
+        if d is not None: return d
+        d=distance_map.get((r,bb,aa))
+        if d is not None: return d
+    for r in ([route] if route else []) + [x for x in ROUTES if x != route]:
+        d=DISTANCE_FALLBACK.get((r,aa,bb))
+        if d is not None: return d
+        d=DISTANCE_FALLBACK.get((r,bb,aa))
+        if d is not None: return d
+    return None
+
+
+def estimate_pass_times(stops, route, distance_map):
+    """Fill pass-event times using the surrounding official minute times.
+    Official timetable seconds are unavailable, so generated seconds are estimates.
+    """
+    if not stops: return stops
+    n=len(stops)
+    # Convert official times to absolute minutes while allowing midnight rollover.
+    known=[None]*n; day=0; prev=None
+    for i,s in enumerate(stops):
+        tm=s.get("time")
+        if tm and re.fullmatch(r"\d{1,2}:\d{2}",str(tm)):
+            h,m=map(int,str(tm).split(":")); v=h*60+m+day
+            if prev is not None and v < prev and prev-v <= 180:
+                day += 1440; v += 1440
+            known[i]=v; prev=v
+    for i,s in enumerate(stops):
+        if s.get("kind") != "pass" or known[i] is not None: continue
+        # Find nearest timed anchors on both sides.
+        l=i-1
+        while l>=0 and known[l] is None: l-=1
+        r=i+1
+        while r<n and known[r] is None: r+=1
+        if l<0 or r>=n or known[l] is None or known[r] is None:
+            continue
+        # Work on the whole consecutive pass block so multiple pass stations are
+        # placed according to distance, not simply equal time slices.
+        block=list(range(l+1,r))
+        cumulative=[0.0]
+        total=0.0
+        for j in range(l+1,r+1):
+            d=distance_between(stops[j-1]["station"],stops[j]["station"],route,distance_map)
+            if d is None: d=1.0
+            total += float(d); cumulative.append(total)
+        if total<=0: continue
+        span=known[r]-known[l]
+        for k,j in enumerate(block, start=1):
+            if stops[j].get("kind") != "pass": continue
+            frac=cumulative[k]/total
+            seconds=round(span*60*frac)
+            # Keep the estimate strictly between the two official minute marks.
+            seconds=max(1,min(span*60-1,seconds))
+            absolute=known[l]*60+seconds
+            hh=(absolute//3600)%24; mm=(absolute//60)%60; ss=absolute%60
+            stops[j]["passTime"]=f"{hh:02d}:{mm:02d}:{ss:02d}"
+            stops[j]["estimated"]=True
+    # 駅間距離も各停車/通過駅へ直接埋め込む。
+    for i in range(1, len(stops)):
+        d=distance_between(stops[i-1]["station"], stops[i]["station"], route, distance_map)
+        if d is not None:
+            stops[i]["distanceFromPreviousKm"]=round(float(d),3)
+    return stops
+
+
+def load_distance_map():
+    distance_map={}
+    for route,url in DISTANCE_LINE_URLS.items():
+        try:
+            req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 MeitetsuTimetableBuilder/1.0"})
+            with urllib.request.urlopen(req,timeout=15) as resp:
+                raw=resp.read().decode("utf-8","ignore")
+            # Extract table rows; the site exposes station name, interval km and cumulative km.
+            rows=re.findall(r"<tr[^>]*>(.*?)</tr>",raw,re.I|re.S)
+            stations=[]
+            for row in rows:
+                cells=re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>",row,re.I|re.S)
+                txt=[re.sub(r"<[^>]+>"," ",c) for c in cells]
+                txt=[re.sub(r"\s+"," ",html.unescape(x)).strip() for x in txt]
+                if not txt: continue
+                joined=" ".join(txt)
+                # Station links appear in the first cell. Pull the Japanese name
+                # before the reading in parentheses.
+                anchors=re.findall(r"<a[^>]*>(.*?)</a>",row,re.I|re.S)
+                anchors=[re.sub(r"<[^>]+>","",a) for a in anchors]
+                anchors=[re.sub(r"\s+"," ",html.unescape(a)).strip() for a in anchors]
+                kms=re.findall(r"(\d+(?:\.\d+)?)\s*km",joined)
+                if anchors and kms:
+                    name=anchors[0].replace(" ","")
+                    if name not in {"駅間","累計"}:
+                        stations.append((name,float(kms[-1])))
+            # De-duplicate in page order and use consecutive cumulative differences.
+            clean_st=[]
+            seen=set()
+            for name,cum in stations:
+                if name in seen: continue
+                seen.add(name); clean_st.append((name,cum))
+            for (a,ca),(b,cb) in zip(clean_st,clean_st[1:]):
+                d=round(abs(cb-ca),3)
+                if d>0: distance_map[(route,a,b)]=d
+            print(f"Distance data: {route} {len(clean_st)} stations")
+        except Exception as exc:
+            print(f"[WARN] Distance data unavailable: {route}: {exc}")
+    return distance_map
 
 
 def route_from_text(text, filename):
@@ -338,7 +523,7 @@ def formation_for_columns(rows, columns, panel):
     return result
 
 
-def parse_panel(rows, words, filename, page_number, anchor, number_top, number_words, group, page_height, day_type):
+def parse_panel(rows, words, filename, page_number, anchor, number_top, number_words, group, page_height, day_type, distance_map):
     columns = [{"number": clean(w["text"]), "x": (w["x0"]+w["x1"])/2} for w in group]
     columns.sort(key=lambda c:c["x"])
     type_top, type_words = nearest_type_row(rows, number_top, columns)
@@ -391,18 +576,25 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
             label=current_station
         if not label:
             continue
-        # Only process rows with at least one valid time in this panel.
+        # 「レ」は時刻が存在しないため、時刻行とは別に拾う。
         time_words=[w for w in row if norm_time(w["text"])]
-        if not time_words:
-            continue
+        pass_words=[w for w in row if normalize_event_marker(w["text"]) == "pass"]
         for i,c in enumerate(columns):
             left,right=bounds[i]
-            w=cell_word(time_words,c["x"],left,right)
-            if not w:
-                continue
-            tm=norm_time(w["text"])
-            if tm:
-                events[i].append({"station":label,"time":tm,"kind":marker or "same","top":top})
+            w=cell_word(time_words,c["x"],left,right) if time_words else None
+            if w:
+                tm=norm_time(w["text"])
+                if tm:
+                    events[i].append({"station":label,"time":tm,"kind":marker or "same","top":top})
+                    continue
+            # 「レ」/「ﾚﾚ」を通過イベントとして保持。
+            pw=None
+            if pass_words:
+                candidates=[x for x in pass_words if left <= ((x["x0"]+x["x1"])/2) < right]
+                if candidates:
+                    pw=min(candidates,key=lambda x: abs(((x["x0"]+x["x1"])/2)-c["x"]))
+            if pw:
+                events[i].append({"station":label,"time":"","kind":"pass","top":top})
 
     route=route_from_text(page_text(words),filename)
     trains=[]
@@ -422,13 +614,29 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
                 old=by_station[st]
                 if e["kind"]=="departure" or old["kind"] not in ("departure",):
                     by_station[st]=e
-        stops=[{"station":st,"time":by_station[st]["time"]} for st in order]
+        stops=[]
+        for st in order:
+            e=by_station[st]
+            stops.append({
+                "station": st,
+                "time": e.get("time", ""),
+                "kind": e.get("kind", "same")
+            })
+        # 通過駅の秒時刻を、前後の公式分時刻と駅間距離から推定。
+        stops=estimate_pass_times(stops, route, distance_map)
+        # 公式時刻がない通過駅でも、通過時刻が推定できていれば保持する。
         if len(stops)<2:
             continue
         # Validate chronological order, allowing one midnight rollover.
         mins=[]; ok=True; day=0; prev=None
         for s in stops:
-            h,m=map(int,s["time"].split(":")); v=h*60+m+day
+            raw=s.get("time") or s.get("passTime") or ""
+            if not re.fullmatch(r"\d{1,2}:\d{2}(?::\d{2})?", str(raw)):
+                ok=False; break
+            parts=list(map(int,str(raw).split(":")))
+            h,m=parts[0],parts[1]
+            sec=parts[2] if len(parts)>2 else 0
+            v=h*60+m+sec/60+day*1440
             if prev is not None and v < prev:
                 if prev-v <= 180: # midnight crossing in normal timetable range
                     day += 1440; v += 1440
@@ -478,7 +686,7 @@ def detect_day_type(text, filename=""):
     return "unknown"
 
 
-def parse_page(page, filename, page_number):
+def parse_page(page, filename, page_number, distance_map):
     words=page.extract_words(x_tolerance=1,y_tolerance=2,keep_blank_chars=False)
     rows=group_rows(words)
     day_type=detect_day_type(page_text(words), filename)
@@ -499,17 +707,17 @@ def parse_page(page, filename, page_number):
             gx=sum((w["x0"]+w["x1"])/2 for w in group)/len(group)
             if abs(gx-anchor["x"]) < 25:
                 continue
-            all_trains.extend(parse_panel(rows,words,filename,page_number,anchor,number_top,nums,group,page.height,day_type))
+            all_trains.extend(parse_panel(rows,words,filename,page_number,anchor,number_top,nums,group,page.height,day_type,distance_map))
     return all_trains
 
 
-def parse_pdf(path):
+def parse_pdf(path, distance_map):
     name=os.path.basename(path); result=[]
     try:
         with pdfplumber.open(path) as pdf:
             for page_number,page in enumerate(pdf.pages,1):
                 try:
-                    result.extend(parse_page(page,name,page_number))
+                    result.extend(parse_page(page,name,page_number,distance_map))
                 except Exception as exc:
                     print(f"[WARN] {name} p{page_number}: {exc}")
     except Exception as exc:
@@ -620,9 +828,10 @@ def main():
     files=sorted(os.path.join(PDF_DIR,n) for n in os.listdir(PDF_DIR) if n.lower().endswith('.pdf')) if os.path.isdir(PDF_DIR) else []
     print(f"PDF files: {len(files)}")
     if not files: raise RuntimeError(f"PDFが見つかりません: {PDF_DIR}")
+    distance_map=load_distance_map()
     all_trains=[]
     for path in files:
-        parsed=parse_pdf(path); print(f"{os.path.basename(path)}: {len(parsed)} trains"); all_trains.extend(parsed)
+        parsed=parse_pdf(path, distance_map); print(f"{os.path.basename(path)}: {len(parsed)} trains"); all_trains.extend(parsed)
     all_trains=dedupe(all_trains)
     all_trains=merge_segments(all_trains)
     all_trains=dedupe(all_trains)
@@ -636,7 +845,7 @@ def main():
         type_counts[t["type"]]=type_counts.get(t["type"],0)+1
         d=t.get("dayType","unknown")
         day_counts[d]=day_counts.get(d,0)+1
-    data={"version":11,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v11-daytype-formation","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"]}
+    data={"version":12,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v12-pass-seconds-distance","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"],"distanceSource":"railway.sidearrow.net station/line distance data"}
     fd,tmp=tempfile.mkstemp(prefix='timetables.',suffix='.json',dir=os.path.dirname(OUTPUT))
     try:
         with os.fdopen(fd,'w',encoding='utf-8') as f:
