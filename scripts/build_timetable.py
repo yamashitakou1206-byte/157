@@ -490,7 +490,8 @@ def merge_segments(trains):
         key=(t.get("dayType","unknown"), t["trainNumber"])
         by_number.setdefault(key, []).append(t)
     merged=[]
-    for number, items in by_number.items():
+    for key, items in by_number.items():
+        day_type, number = key
         items=list(items)
         used=set()
         # Repeatedly join the closest valid segment pair.
