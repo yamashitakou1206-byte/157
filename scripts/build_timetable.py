@@ -39,13 +39,22 @@ def normalize_type(value):
     value = clean(value).replace(" ", "")
     if not value:
         return ""
-    # Common PDF glyph duplication / full-width variants.
+    # PDFでは同じ字形が連続して抽出されることがある。
+    # 種別だけは安全に既知の表記へ寄せる。
+    aliases = {
+        "普普":"普通", "準準":"準急", "急急":"急行",
+        "特特":"特急", "快快急急":"快速急行", "快速快速急行":"快速急行",
+        "快快特特":"快速特急", "快速快速特急":"快速特急",
+        "μS":"ミュースカイ", "μＳ":"ミュースカイ",
+        "μμSS":"ミュースカイ", "μμＳＳ":"ミュースカイ",
+        "μμSky":"ミュースカイ", "μμＳｋｙ":"ミュースカイ",
+    }
+    if value in aliases:
+        return aliases[value]
     if "μ" in value and ("Ｓ" in value or "S" in value):
         return "ミュースカイ"
     value = value.replace("ｓ", "s").replace("Ｓ", "S")
-    if value in ("μμSS", "μμＳＳ"):
-        return "ミュースカイ"
-    return TYPE_MAP.get(value, "")
+    return TYPE_MAP.get(value, aliases.get(value, ""))
 
 
 def collapse_duplicate_glyphs(s):
@@ -167,16 +176,18 @@ def nearest_type_row(rows, number_top, columns):
     return None, []
 
 
-def cell_word(words, x, left, right):
+def is_pass_word(value):
+    return clean(value).replace(" ", "") in {"レ", "ﾚ"}
+
+def cell_event_word(words, x, left, right):
     candidates = []
     for w in words:
         cx = (w["x0"] + w["x1"]) / 2
         if left <= cx < right:
             candidates.append(w)
-    # Prefer an actual time token, then the closest token.
-    times = [w for w in candidates if norm_time(w["text"])]
-    if times:
-        return min(times, key=lambda w: abs(((w["x0"]+w["x1"])/2)-x))
+    events = [w for w in candidates if norm_time(w["text"]) or is_pass_word(w["text"])]
+    if events:
+        return min(events, key=lambda w: abs(((w["x0"]+w["x1"]) / 2)-x))
     return None
 
 
@@ -192,6 +203,30 @@ def make_cell_bounds(columns):
     return bounds
 
 
+def is_noise_label(txt):
+    """Reject PDF page/header fragments that are not station names."""
+    txt = clean(txt).replace(" ", "")
+    if not txt:
+        return True
+    exact = {
+        "前のページ", "次のページ", "始発", "終着", "記事", "行先",
+        "列車番号", "種別", "平日", "土休日", "土曜休日"
+    }
+    if txt in exact:
+        return True
+    # Page-continuation artifacts such as 前のページ222668626686.
+    if "前のページ" in txt or "次のページ" in txt:
+        return True
+    if "ページ" in txt and re.search(r"\d", txt):
+        return True
+    # Header fragments and pure numeric/alphanumeric extraction.
+    if re.fullmatch(r"[0-9A-Za-z.]+", txt):
+        return True
+    if re.fullmatch(r"[.・…=└─]+", txt):
+        return True
+    return False
+
+
 def station_label(row, panel):
     """Read station label for a mirrored panel."""
     lo, hi = panel["label_range"]
@@ -202,10 +237,7 @@ def station_label(row, panel):
     for x in ["発", "着", "〃"]:
         txt = txt.replace(x, "")
     txt = txt.strip()
-    if not txt or txt in {"前のページ", "始発", "終着", "記事", "行先", "列車番号", "種別"}:
-        return ""
-    # Reject obvious page/header fragments.
-    if re.fullmatch(r"[0-9A-Za-z.]+", txt):
+    if is_noise_label(txt):
         return ""
     if len(txt) < 2 or txt in {"始", "終", "発", "着"}:
         return ""
@@ -274,7 +306,7 @@ def destination_for_columns(rows, type_top, columns, panel):
             cx = (w["x0"]+w["x1"])/2
             if left <= cx < right:
                 t = clean(w["text"])
-                if not t or t in SKIP_DEST or normalize_type(t) or norm_time(t):
+                if not t or t in SKIP_DEST or is_noise_label(t) or normalize_type(t) or norm_time(t):
                     continue
                 if re.fullmatch(r"[.・…=└─]+", t):
                     continue
@@ -338,18 +370,19 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
             label=current_station
         if not label:
             continue
-        # Only process rows with at least one valid time in this panel.
-        time_words=[w for w in row if norm_time(w["text"])]
-        if not time_words:
+        # 通過記号「レ」もイベントとして保持する。
+        event_words=[w for w in row if norm_time(w["text"]) or is_pass_word(w["text"])]
+        if not event_words:
             continue
         for i,c in enumerate(columns):
             left,right=bounds[i]
-            w=cell_word(time_words,c["x"],left,right)
+            w=cell_event_word(event_words,c["x"],left,right)
             if not w:
                 continue
             tm=norm_time(w["text"])
-            if tm:
-                events[i].append({"station":label,"time":tm,"kind":marker or "same","top":top})
+            passed=is_pass_word(w["text"])
+            if tm or passed:
+                events[i].append({"station":label,"time":tm,"pass":passed,"kind":marker or "same","top":top})
 
     route=route_from_text(page_text(words),filename)
     trains=[]
@@ -369,20 +402,29 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
                 old=by_station[st]
                 if e["kind"]=="departure" or old["kind"] not in ("departure",):
                     by_station[st]=e
-        stops=[{"station":st,"time":by_station[st]["time"]} for st in order]
+        stops=[]
+        for st in order:
+            e=by_station[st]
+            stops.append({"station":st,"time":e.get("time", ""),"pass":bool(e.get("pass", False))})
         if len(stops)<2:
             continue
-        # Validate chronological order, allowing one midnight rollover.
-        mins=[]; ok=True; day=0; prev=None
+        # 時刻の抽出ミス1件で列車全体を捨てない。異常な逆行時刻だけ除外して
+        # 残りの駅列を保持する。通過「レ」は時刻なしでも保持する。
+        fixed=[]; prev=None; day=0
         for s in stops:
-            h,m=map(int,s["time"].split(":")); v=h*60+m+day
+            tm=s.get("time","")
+            if not tm:
+                fixed.append(s); continue
+            h,m=map(int,tm.split(":")); v=h*60+m+day
             if prev is not None and v < prev:
-                if prev-v <= 180: # midnight crossing in normal timetable range
+                if prev-v <= 180:
                     day += 1440; v += 1440
                 else:
-                    ok=False; break
-            mins.append(v); prev=v
-        if not ok:
+                    # PDFの列ずれ等による異常値。列車を丸ごと破棄しない。
+                    continue
+            fixed.append(s); prev=v
+        stops=fixed
+        if len(stops)<2:
             continue
         dest=destinations[i] or stops[-1]["station"]
         ident_raw=f"{c['number']}|{types[i]}|{stops[0]['station']}|{dest}|{filename}|{page_number}|{i}|{stops[0]['time']}|{stops[-1]['time']}"
@@ -399,6 +441,7 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
             "pdf":filename,
             "page":page_number,
             "stops":stops,
+        "passCount":sum(1 for s in stops if s.get("pass")),
         })
     return trains
 
@@ -522,7 +565,19 @@ def merge_segments(trains):
                     if r and r not in routes: routes.append(r)
                 combined["route"]="・".join(routes)
                 combined["crew"]=crew_for_route(combined["route"])
-                combined["id"]=hashlib.sha1((number+json.dumps(combined["stops"],ensure_ascii=False)).encode()).hexdigest()
+                key_text = json.dumps(
+                    {"dayType": day_type, "trainNumber": str(number)},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                stops_text = json.dumps(
+                    combined["stops"],
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                combined["id"] = hashlib.sha1(
+                    (key_text + stops_text).encode()
+                ).hexdigest()
                 items=[x for k,x in enumerate(items) if k not in (i,j)] + [combined]
                 changed=True
                 break
@@ -550,10 +605,17 @@ def main():
         type_counts[t["type"]]=type_counts.get(t["type"],0)+1
         d=t.get("dayType","unknown")
         day_counts[d]=day_counts.get(d,0)+1
-    data={"version":9,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v9-daytype","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"]}
+    data={"version":11,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v11-pass-second","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"]}
     fd,tmp=tempfile.mkstemp(prefix='timetables.',suffix='.json',dir=os.path.dirname(OUTPUT))
     try:
-        with os.fdopen(fd,'w',encoding='utf-8') as f: json.dump(data,f,ensure_ascii=False,indent=2); f.write('\n')
+        with os.fdopen(fd,'w',encoding='utf-8') as f:
+            json.dump(
+                data,
+                f,
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+            f.write("\n")
         os.replace(tmp,OUTPUT)
     finally:
         if os.path.exists(tmp): os.remove(tmp)
