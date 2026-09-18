@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff"><meta name="description" content="名鉄風の運行・列車・時刻表Webアプリ">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="default"><meta name="apple-mobile-web-app-title" content="名鉄運行Web">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest"><link rel="stylesheet" href="style.css?v=16">
+<title>MEITETSU Operation Web v10.0 Driver Display</title>
+</head>
+<body>
+<div id="toast" class="toast" aria-live="polite"></div>
+<header class="topbar">
+<button class="top-btn" id="backBtn">‹ 列車一覧</button>
+<div class="brand"><span class="brand-mark">M</span><span>MEITETSU</span><small>運行・列車表示</small></div>
+<div class="top-actions"><button class="icon-btn" id="themeBtn" title="テーマ">☾</button><button class="icon-btn" id="zoomOut">−</button><button class="icon-btn" id="zoomIn">＋</button><button class="icon-btn" id="menuBtn">☰</button></div>
+</header>
+<main class="app-shell" id="listView">
+<section class="hero-card"><div class="hero-left"><span class="eyebrow">MEITETSU OPERATION WEB</span><h1>列車運行・時刻案内</h1><p id="heroSub">路線・駅・列車番号から列車詳細を検索できます。</p></div><div class="hero-clock"><span id="digital">00:00:00</span><small id="dateText">----</small></div></section>
+<section class="control-card">
+<div class="control-grid"><label>路線<select id="lineSelect"></select></label><label>駅<select id="stationSelect"></select></label><label>方向<select id="directionSelect"><option value="up">上り・始発側</option><option value="down">下り・終着側</option></select></label><label>種別<select id="typeSelect"><option>ミュースカイ</option><option>快速特急</option><option>特急</option><option>快速急行</option><option>急行</option><option>準急</option><option>普通</option></select></label></div>
+<div class="train-search"><div><strong>列車番号から検索</strong><small>例：1980S　入力すると列車詳細画面へ移動します</small></div><div class="train-search-box"><input id="trainNumberInput" autocomplete="off" placeholder="列車番号（例：1980S）"><button id="trainSearchBtn">検索</button></div><div class="service-day-box"><label for="dayTypeSelect">時刻表区分</label><select id="dayTypeSelect"><option value="weekday">平日</option><option value="holiday">土休日</option></select><button type="button" id="dayTypeAutoBtn" class="mini-btn">自動</button></div></div>
+<div id="trainSearchResult" class="train-search-result"></div><div id="dataStatus" class="data-status">時刻表データを確認中…（画面はすぐ使用できます）</div>
+<div class="quick-row" id="quickLines"></div>
+<div class="filter-row"><button class="filter active" data-filter="all">すべて</button><button class="filter" data-filter="favorite">★ お気に入り</button><button class="filter" data-filter="delay">遅延情報</button><button class="filter" data-filter="local">普通列車</button></div>
+</section>
+<section class="status-banner" id="operationBanner"><div class="status-dot ok"></div><div><strong id="bannerTitle">平常運転</strong><span id="bannerText">この画面の運行情報はデモ表示です。</span></div><div class="updated" id="lastUpdated">更新 --:--:--</div><button id="officialBtn">公式運行情報 ↗</button></section>
+<section class="metrics"><div class="metric"><span>選択駅</span><strong id="metricStation">—</strong><small id="metricLine">—</small></div><div class="metric"><span>次の列車</span><strong id="metricNext">--:--</strong><small id="metricCountdown">—</small></div><div class="metric"><span>走行位置</span><strong id="metricPosition">—</strong><small>シミュレーション</small></div><div class="metric"><span>お気に入り</span><strong id="metricFav">0</strong><small>駅を保存</small></div></section>
+<div class="dashboard"><section class="main-panel">
+<section class="train-card"><div class="train-head"><div class="type" id="trainType">普通</div><div class="train-service"><b id="serviceCode">M</b><span id="cars">2両</span></div></div><div class="route-row"><div class="route-end"><small>発</small><strong id="origin">豊橋</strong></div><div class="route-arrow">→</div><div class="route-end"><small>着</small><strong id="destination">名鉄岐阜</strong></div><div class="train-number"><strong id="trainNo">1980S</strong><small>列車番号</small></div></div><div class="live-row"><span class="live-pill"><i></i> LIVE SIM</span><span id="currentLocation">現在位置：—</span><span id="nextStop">次駅：—</span><span id="eta">到着まで —</span><button class="mini-btn" id="favoriteStation">☆ 駅を保存</button></div></section>
+<section class="position-card"><div class="section-title"><span>列車走行位置</span><small id="positionUpdated">更新 --:--:--</small></div><div class="route-map" id="routeMap"></div><div class="map-legend"><span><i class="lg-current"></i>現在位置</span><span><i class="lg-passed"></i>通過済み</span><span><i class="lg-next"></i>これから</span></div></section>
+<section class="schedule-card" id="scheduleSection"><div class="section-title"><span>停車駅・時刻</span><div class="section-actions"><button class="mini-btn active" data-view="schedule">時刻</button><button class="mini-btn" data-view="compact">簡易</button><button class="mini-btn" id="shareBtn">共有</button></div></div><div class="table-wrap"><table id="scheduleTable"><thead><tr><th>駅</th><th>到着</th><th>発車</th><th>状態</th><th></th></tr></thead><tbody></tbody></table></div></section>
+<section class="timetable-card" id="timetableSection"><div class="section-title"><span>駅の発車案内</span><small id="timetableTitle">—</small></div><div id="timetableList" class="timetable-list"></div></section>
+</section><aside class="side-panel"><section class="clock-card"><div class="side-title">アナログ時計</div><div class="clock-wrap"><canvas id="analog" width="190" height="190"></canvas></div></section><section class="next-card"><div class="side-title">次の列車</div><div id="nextTrains"></div></section><section class="favorites-card"><div class="section-title"><span>お気に入り駅</span><button class="mini-btn" id="clearFavorites">消去</button></div><div id="favoritesList"></div></section><section class="news-card"><div class="section-title"><span>運行・お知らせ</span><small>デモ</small></div><div id="newsList" class="news-list"></div></section><section class="settings-card" id="settingsPanel"><div class="side-title">設定</div><label class="switch-row"><span>自動更新</span><input type="checkbox" id="autoRefresh" checked><i></i></label><label class="switch-row"><span>ダークモード</span><input type="checkbox" id="darkToggle"><i></i></label><label class="switch-row"><span>秒表示</span><input type="checkbox" id="secondsToggle" checked><i></i></label><label class="switch-row"><span>通知デモ</span><input type="checkbox" id="notifyToggle"><i></i></label><button class="wide-btn" id="refreshBtn">↻ 今すぐ更新</button><button class="wide-btn secondary" id="fullscreenBtn">⛶ 全画面</button><button class="wide-btn secondary" id="installBtn" hidden>＋ ホーム画面に追加</button></section></aside></div></main>
+
+<section id="detailView" class="detail-view" hidden>
+<div class="detail-top"><button id="detailBack">‹ 列車一覧</button><div class="detail-title"><strong id="detailCrewName">名古屋乗務区</strong><small id="detailDate">--:--　----</small></div><div class="detail-tools"><button id="detailTheme">☼</button><button id="detailZoomOut">−</button><button id="detailZoomIn">＋</button><button id="detailMenu">⋮</button></div></div>
+<div class="detail-head"><div class="detail-type" id="detailType">普通</div><div class="detail-cars"><b id="detailCars">2</b><span>両</span></div><div class="detail-code"><b id="detailCode">M</b></div><div class="detail-notice">通告</div></div>
+<div class="detail-grid">
+<div class="detail-left">
+<div class="detail-route"><div class="detail-end departure"><span>発</span><b id="detailOrigin">一宮</b></div><div class="detail-end arrival"><span>着</span><b id="detailDestination">津島</b></div><div class="detail-number"><b id="detailTrainNo">1980S</b><span>列車</span></div></div>
+<div class="detail-table-wrap"><table class="detail-table"><thead><tr><th></th><th>駅</th><th>到着</th><th>発車</th></tr></thead><tbody id="detailSchedule"></tbody></table></div>
+</div>
+<aside class="detail-right"><div class="crew-state" id="detailCrewState">乗務開始</div><div class="detail-clock"><canvas id="detailAnalog" width="240" height="240"></canvas><strong id="detailDigital">00:00:00</strong></div><div class="article-box"><div>記事</div><p>自動放送なし</p><p id="detailNotice">列車番号検索で表示した列車です。</p></div></aside>
+</div>
+</section>
+
+<nav class="bottom-nav"><button class="nav-item active" data-target="top">⌂<span>運行</span></button><button class="nav-item" data-target="scheduleSection">▤<span>時刻表</span></button><button class="nav-item" id="stationBtn">◎<span>駅</span></button><button class="nav-item" data-target="favoritesList">★<span>お気に入り</span></button><button class="nav-item" id="settingsBtn">⚙<span>設定</span></button></nav>
+<dialog id="menuDialog"><div class="dialog-head"><strong>メニュー</strong><button id="closeDialog">×</button></div><div class="dialog-body"><button class="menu-link" id="simulateDelay">⚠ 遅延表示をデモする</button><button class="menu-link" id="clearDelay">✓ 平常運転に戻す</button><button class="menu-link" id="simulateCancel">⛔ 運休列車をデモする</button><button class="menu-link" id="officialMenu">↗ 名鉄公式 運行情報</button><div class="search-box"><input id="stationSearch" placeholder="駅名を検索（例：一宮）"><button id="searchStation">検索</button></div><div id="searchResult"></div><p class="demo-note">列車番号検索は、名鉄公式「路線別時刻表」のPDFをGitHub Actionsで解析して生成したデータを使用します。運行情報・現在位置は別途シミュレーションです。公式PDFの更新後はデータ更新ワークフローを実行してください。</p></div></dialog>
+<footer>MEITETSU Operation Web · Official Timetable Parser · v6.2</footer>
+<script src="app.js?v=16"></script>
+</body></html>
