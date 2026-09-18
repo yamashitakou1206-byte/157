@@ -474,3 +474,69 @@ body.driver-mode .detail-grid {
   .detail-clock canvas{width:min(180px,70%)!important}.detail-clock strong{font-size:clamp(20px,4.8vw,34px)!important}
 }
 
+
+/* =========================================================
+   v14: 参照写真に合わせた最終レイアウト調整
+   - 下段の左表示幅を写真比率へ（約45%）
+   - 発/着を細い列、駅名、列車番号、列車をコンパクトに
+   - 罫線1px中心
+   - 時計を小型化
+   - 長い駅名/列車番号はJSのfit処理を優先
+   ========================================================= */
+.detail-view{overflow:hidden!important}
+.detail-top{height:58px!important;border-bottom:1px solid #222!important}
+.detail-head{height:92px!important;grid-template-columns:45% 17.5% 20.5% 17%!important;border-top:1px solid #222!important;border-bottom:1px solid #222!important}
+.detail-type{font-size:54px!important;font-weight:700!important;border-right:1px solid #222!important}
+.detail-cars,.detail-code,.detail-notice{border-right:1px solid #222!important}
+.detail-cars b{font-size:48px!important}
+.detail-cars span{font-size:19px!important;margin-bottom:8px!important}
+.detail-code b{font-size:50px!important}
+.detail-notice{font-size:39px!important}
+.detail-grid{grid-template-columns:45.5% 54.5%!important;min-height:calc(100dvh - 150px)!important}
+.detail-left{border-right:1px solid #222!important}
+.detail-route{height:92px!important;grid-template-columns:43px minmax(0,1fr) minmax(0,1fr) 40px!important;grid-template-rows:1fr 1fr!important;border-bottom:1px solid #222!important}
+.detail-end{grid-template-columns:43px minmax(0,1fr)!important;border-right:1px solid #222!important}
+.detail-end.departure{grid-column:1 / 3!important;grid-row:1!important;border-bottom:1px solid #222!important}
+.detail-end.arrival{grid-column:1 / 3!important;grid-row:2!important}
+.detail-end span{font-size:20px!important}
+.detail-end b{font-size:clamp(20px,3.1vw,30px)!important;padding:0 2px!important}
+.detail-number{grid-column:3 / 5!important;grid-row:1 / 3!important;grid-template-columns:minmax(0,1fr) 40px!important}
+.detail-number b{font-size:clamp(27px,4vw,40px)!important;padding:0 2px!important}
+.detail-number span{font-size:18px!important}
+.detail-table-wrap{height:calc(100dvh - 242px)!important}
+.detail-table th,.detail-table td{height:36px!important;padding:0 4px!important;border-bottom:1px solid #222!important;border-right:1px solid #222!important}
+.detail-table th{font-size:10px!important}
+.detail-table th:nth-child(1){width:35px!important}
+.detail-table th:nth-child(2){width:39%!important}
+.detail-table th:nth-child(3),.detail-table th:nth-child(4){width:30.5%!important}
+.detail-table td{font-size:17px!important}
+.detail-table td:first-child{font-size:12px!important}
+.crew-state{height:58px!important;border-bottom:1px solid #222!important;font-size:29px!important}
+.detail-clock{padding:10px 5px 6px!important}
+.detail-clock canvas{width:min(125px,38%)!important;height:auto!important}
+.detail-clock strong{font-size:29px!important;letter-spacing:1px!important;margin-top:5px!important}
+.article-box{border-top:1px solid #222!important;margin-top:0!important}
+.article-box>div{font-size:19px!important;padding:2px 6px!important}
+.article-box p{font-size:15px!important;line-height:1.4!important;margin:6px!important}
+
+@media (max-width:760px){
+ .detail-head{height:86px!important;grid-template-columns:45% 17.5% 20.5% 17%!important}
+ .detail-type{font-size:clamp(34px,7vw,50px)!important}
+ .detail-cars b{font-size:clamp(30px,6.5vw,46px)!important}
+ .detail-cars span{font-size:13px!important;margin-bottom:7px!important}
+ .detail-code b{font-size:clamp(31px,6.8vw,48px)!important}
+ .detail-notice{font-size:clamp(23px,5.2vw,37px)!important}
+ .detail-grid{grid-template-columns:45.5% 54.5%!important;min-height:calc(100dvh - 144px)!important}
+ .detail-route{height:86px!important;grid-template-columns:31px minmax(0,1fr) minmax(0,1fr) 30px!important}
+ .detail-end{grid-template-columns:31px minmax(0,1fr)!important}
+ .detail-end span{font-size:14px!important}
+ .detail-end b{font-size:clamp(17px,4vw,26px)!important}
+ .detail-number{grid-template-columns:minmax(0,1fr) 30px!important}
+ .detail-number b{font-size:clamp(22px,5vw,32px)!important}
+ .detail-number span{font-size:13px!important}
+ .detail-table-wrap{height:calc(100dvh - 230px)!important}
+ .detail-table td{font-size:clamp(12px,3.1vw,17px)!important;height:34px!important}
+ .crew-state{height:52px!important;font-size:clamp(20px,4.5vw,27px)!important}
+ .detail-clock canvas{width:min(120px,55%)!important}
+ .detail-clock strong{font-size:clamp(18px,4.2vw,28px)!important}
+}
