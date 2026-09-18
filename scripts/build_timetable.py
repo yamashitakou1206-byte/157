@@ -288,6 +288,9 @@ def station_label(row, panel):
     if not ws:
         return ""
     txt = "".join(clean(w["text"]) for w in sorted(ws, key=lambda w:w["x0"]))
+    txt = collapse_duplicate_chars(txt)
+    txt = re.sub(r"前のページ.*", "", txt)
+    txt = re.sub(r"次のページ.*", "", txt)
     for x in ["発", "着", "〃"]:
         txt = txt.replace(x, "")
     txt = txt.strip()
@@ -393,41 +396,67 @@ def estimate_pass_times(stops, route, distance_map):
 
 
 def load_distance_map():
+    """Load interval distances from line pages.
+
+    The source page's HTML has changed over time: some versions include the
+    literal 'km' in table cells, while others expose only numeric cells.
+    Support both formats so GitHub Actions does not silently produce a
+    distance-less JSON file.
+    """
     distance_map={}
     for route,url in DISTANCE_LINE_URLS.items():
         try:
-            req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 MeitetsuTimetableBuilder/1.0"})
-            with urllib.request.urlopen(req,timeout=15) as resp:
+            req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 MeitetsuTimetableBuilder/2.0"})
+            with urllib.request.urlopen(req,timeout=6) as resp:
                 raw=resp.read().decode("utf-8","ignore")
-            # Extract table rows; the site exposes station name, interval km and cumulative km.
             rows=re.findall(r"<tr[^>]*>(.*?)</tr>",raw,re.I|re.S)
             stations=[]
             for row in rows:
-                cells=re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>",row,re.I|re.S)
-                txt=[re.sub(r"<[^>]+>"," ",c) for c in cells]
-                txt=[re.sub(r"\s+"," ",html.unescape(x)).strip() for x in txt]
-                if not txt: continue
-                joined=" ".join(txt)
-                # Station links appear in the first cell. Pull the Japanese name
-                # before the reading in parentheses.
                 anchors=re.findall(r"<a[^>]*>(.*?)</a>",row,re.I|re.S)
                 anchors=[re.sub(r"<[^>]+>","",a) for a in anchors]
                 anchors=[re.sub(r"\s+"," ",html.unescape(a)).strip() for a in anchors]
-                kms=re.findall(r"(\d+(?:\.\d+)?)\s*km",joined)
-                if anchors and kms:
-                    name=anchors[0].replace(" ","")
-                    if name not in {"駅間","累計"}:
-                        stations.append((name,float(kms[-1])))
-            # De-duplicate in page order and use consecutive cumulative differences.
-            clean_st=[]
-            seen=set()
-            for name,cum in stations:
+                if not anchors:
+                    continue
+                name=collapse_duplicate_chars(anchors[0]).replace(" ","")
+                if not name or name in {"駅間","累計","参考情報"}:
+                    continue
+                cells=re.findall(r"<t[dh][^>]*>(.*?)</t[dh]>",row,re.I|re.S)
+                cell_text=[]
+                for c in cells:
+                    x=re.sub(r"<[^>]+>"," ",c)
+                    x=re.sub(r"\s+"," ",html.unescape(x)).strip()
+                    cell_text.append(x)
+                # Prefer an explicit km value. Otherwise use numeric cells.
+                kms=[float(x) for x in re.findall(r"(?<![A-Za-z0-9])([0-9]+(?:\.[0-9]+)?)\s*km", " ".join(cell_text), re.I)]
+                if not kms:
+                    nums=[]
+                    for x in cell_text:
+                        m=re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)", x)
+                        if m:
+                            nums.append(float(m.group(1)))
+                    if nums:
+                        # Tables are normally [station, interval, cumulative].
+                        kms=[nums[0], nums[-1]] if len(nums)>=2 else nums
+                if kms:
+                    # Keep interval when available; cumulative is useful as a
+                    # fallback for pages whose first numeric column is absent.
+                    interval=kms[0]
+                    cumulative=kms[-1]
+                    stations.append((name, interval, cumulative))
+            # Use cumulative differences where available; otherwise interval.
+            clean_st=[]; seen=set()
+            for name,interval,cum in stations:
                 if name in seen: continue
-                seen.add(name); clean_st.append((name,cum))
-            for (a,ca),(b,cb) in zip(clean_st,clean_st[1:]):
-                d=round(abs(cb-ca),3)
-                if d>0: distance_map[(route,a,b)]=d
-            print(f"Distance data: {route} {len(clean_st)} stations")
+                seen.add(name); clean_st.append((name,interval,cum))
+            for i,(name,interval,cum) in enumerate(clean_st):
+                if i==0: continue
+                prev_name,prev_interval,prev_cum=clean_st[i-1]
+                d=float(interval)
+                if d<=0 and cum is not None and prev_cum is not None:
+                    d=abs(float(cum)-float(prev_cum))
+                if d>0:
+                    distance_map[(route,prev_name,name)]=round(d,3)
+            print(f"Distance data: {route} {len(clean_st)} stations / {sum(1 for k in distance_map if k[0]==route)} intervals")
         except Exception as exc:
             print(f"[WARN] Distance data unavailable: {route}: {exc}")
     return distance_map
@@ -489,6 +518,8 @@ def destination_for_columns(rows, type_top, columns, panel):
                 pieces.append(w)
         text = "".join(w["text"] for w in sorted(pieces, key=lambda w:(w["top"],w["x0"])))
         text = collapse_duplicate_chars(text)
+        text = re.sub(r"前のページ.*", "", text)
+        text = re.sub(r"次のページ.*", "", text)
         # Fix the known doubled-glyph pattern produced by this PDF family.
         text = re.sub(r"中中部部国国際際空空港港", "中部国際空港", text)
         text = re.sub(r"中中部部国国", "中部国", text)
@@ -612,6 +643,9 @@ def parse_panel(rows, words, filename, page_number, anchor, number_top, number_w
                 by_station[st]=e; order.append(st)
             else:
                 old=by_station[st]
+                # Never overwrite a pass event with a blank/duplicated station row.
+                if old.get("kind") == "pass" and not e.get("time"):
+                    continue
                 if e["kind"]=="departure" or old["kind"] not in ("departure",):
                     by_station[st]=e
         stops=[]
@@ -823,6 +857,32 @@ def merge_segments(trains):
     return merged
 
 
+def enrich_distances_and_pass_times(trains, distance_map):
+    """Recompute pass seconds and cumulative running distance after merges."""
+    for t in trains:
+        stops=t.get("stops") or []
+        route=t.get("route","")
+        stops=estimate_pass_times(stops, route, distance_map)
+        cumulative=0.0
+        for i,stop in enumerate(stops):
+            if i==0:
+                stop["distanceFromPreviousKm"]=0.0
+                stop["distanceKm"]=0.0
+                continue
+            d=stop.get("distanceFromPreviousKm")
+            if d is None:
+                d=distance_between(stops[i-1]["station"],stop["station"],route,distance_map)
+            if d is not None:
+                d=float(d)
+                stop["distanceFromPreviousKm"]=round(d,3)
+                cumulative += d
+                stop["distanceKm"]=round(cumulative,3)
+            else:
+                stop["distanceKm"]=round(cumulative,3)
+        t["distanceKm"]=round(cumulative,3)
+    return trains
+
+
 def main():
     os.makedirs(os.path.dirname(OUTPUT),exist_ok=True)
     files=sorted(os.path.join(PDF_DIR,n) for n in os.listdir(PDF_DIR) if n.lower().endswith('.pdf')) if os.path.isdir(PDF_DIR) else []
@@ -834,7 +894,9 @@ def main():
         parsed=parse_pdf(path, distance_map); print(f"{os.path.basename(path)}: {len(parsed)} trains"); all_trains.extend(parsed)
     all_trains=dedupe(all_trains)
     all_trains=merge_segments(all_trains)
+    all_trains=enrich_distances_and_pass_times(all_trains, distance_map)
     all_trains=dedupe(all_trains)
+    all_trains=enrich_distances_and_pass_times(all_trains, distance_map)
     all_trains=apply_known_metadata(all_trains)
     all_trains.sort(key=sort_key)
     if len(all_trains)<MIN_TRAIN_COUNT:
@@ -845,7 +907,7 @@ def main():
         type_counts[t["type"]]=type_counts.get(t["type"],0)+1
         d=t.get("dayType","unknown")
         day_counts[d]=day_counts.get(d,0)+1
-    data={"version":12,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v12-pass-seconds-distance","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"],"distanceSource":"railway.sidearrow.net station/line distance data"}
+    data={"version":13,"updatedAt":datetime.now(timezone.utc).isoformat(),"source":"名古屋鉄道公式時刻表","sourceUrl":"https://www.meitetsu.co.jp/train/timetable/","trainCount":len(all_trains),"trains":all_trains,"parser":"pdfplumber-coordinate-v13-pass-seconds-distance-cumulative","typeCounts":type_counts,"dayTypeCounts":day_counts,"dayTypes":["weekday","holiday"],"distanceSource":"railway.sidearrow.net station/line distance data"}
     fd,tmp=tempfile.mkstemp(prefix='timetables.',suffix='.json',dir=os.path.dirname(OUTPUT))
     try:
         with os.fdopen(fd,'w',encoding='utf-8') as f:
