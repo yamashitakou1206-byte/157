@@ -129,8 +129,13 @@ html:fullscreen .detail-grid { min-height: 100dvh; }
 /* Driver-display immersive mode: hide the web app chrome while a train detail is open.
    iPad/iPhone standalone mode cannot programmatically hide the OS status bar,
    but all in-page header/footer controls are removed. */
+html:has(body.driver-mode),
 body.driver-mode {
-  padding-bottom: 0 !important;
+  background: #fff !important;
+}
+body.driver-mode {
+  padding: 0 !important;
+  margin: 0 !important;
   overflow: hidden;
 }
 body.driver-mode .topbar,
@@ -148,9 +153,9 @@ body.driver-mode .detail-view {
   padding: 0;
   margin: 0;
 }
-body.driver-mode .detail-top {
-  display: none !important;
-}
+/* detail-top is intentionally kept: the white crew-name/title bar belongs to
+   the driver display. Only the normal black site header and bottom navigation
+   are removed. */
 body.driver-mode .detail-grid {
   width: 100vw;
   max-width: none;
