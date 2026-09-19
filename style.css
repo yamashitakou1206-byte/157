@@ -1,0 +1,890 @@
+:root{--bg:#f3f5f8;--panel:#fff;--panel2:#eef1f5;--text:#18202a;--muted:#697381;--line:#d7dce3;--accent:#c40018;--line-accent:#c40018;--ok:#138a48;--warn:#c87900;--shadow:0 8px 28px rgba(20,28,38,.09);--radius:16px;--zoom:1}*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Noto Sans JP","Yu Gothic",Meiryo,sans-serif;font-size:calc(15px * var(--zoom));padding-bottom:86px}button,select,input{font:inherit}button{cursor:pointer}body.dark{--bg:#090d13;--panel:#111721;--panel2:#1a212d;--text:#f1f4f7;--muted:#9aa5b2;--line:#2c3542;--shadow:0 10px 32px rgba(0,0,0,.3)}
+.topbar{position:sticky;top:0;z-index:30;height:64px;background:#11151b;color:#fff;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:0 14px;box-shadow:0 2px 14px #0003}.top-btn,.icon-btn{background:transparent;border:0;color:#fff}.top-btn{justify-self:start;font-weight:700}.brand{display:flex;align-items:center;gap:8px;font-weight:800;letter-spacing:.08em}.brand-mark{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--accent);font-weight:900}.brand small{display:block;font-size:10px;letter-spacing:0;color:#aeb7c3;margin-left:4px}.top-actions{justify-self:end;display:flex;gap:4px}.icon-btn{width:36px;height:36px;border-radius:9px;font-size:20px}.icon-btn:hover,.top-btn:hover{background:#ffffff14}.app-shell{max-width:1280px;margin:auto;padding:14px}.hero-card,.control-card,.status-banner,.train-card,.position-card,.schedule-card,.timetable-card,.clock-card,.next-card,.news-card,.settings-card,.favorites-card,.metric{background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:var(--radius)}.hero-card{display:flex;justify-content:space-between;align-items:center;padding:18px;margin-bottom:12px;background:linear-gradient(135deg,var(--panel),var(--panel2))}.eyebrow{font-size:10px;font-weight:900;letter-spacing:.14em;color:var(--accent)}h1{margin:4px 0;font-size:26px} .hero-left p{margin:0;color:var(--muted);font-size:12px}.hero-clock{text-align:right}.hero-clock span{display:block;font-size:30px;font-weight:900;font-variant-numeric:tabular-nums}.hero-clock small{color:var(--muted)}.control-card{padding:14px;margin-bottom:12px}.control-grid{display:grid;grid-template-columns:1.3fr 1.3fr 1fr 1fr;gap:10px}.control-grid label{font-size:12px;font-weight:800;color:var(--muted)}select,input{display:block;width:100%;margin-top:5px;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:10px 12px;outline:none}.quick-row,.filter-row{display:flex;gap:7px;overflow:auto;padding-top:10px}.quick,.filter{white-space:nowrap;border:1px solid var(--line);background:var(--panel2);color:var(--text);padding:7px 11px;border-radius:999px}.quick i{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}.quick.active,.filter.active{background:var(--accent);border-color:var(--accent);color:white}.status-banner{display:flex;align-items:center;gap:11px;padding:11px 14px;margin-bottom:12px}.status-dot{width:11px;height:11px;border-radius:50%;flex:none}.status-dot.ok{background:var(--ok);box-shadow:0 0 0 5px #138a4815}.status-dot.warn{background:var(--warn);box-shadow:0 0 0 5px #c8790015}.status-banner>div:nth-child(2){min-width:0;flex:1}.status-banner strong{display:block;font-size:14px}.status-banner span,.updated{display:block;color:var(--muted);font-size:11px;margin-top:2px}.status-banner button{border:0;background:transparent;color:var(--accent);font-weight:800;white-space:nowrap}.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}.metric{padding:12px}.metric span,.metric small{display:block;color:var(--muted);font-size:10px}.metric strong{display:block;font-size:19px;margin:2px 0}.dashboard{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:12px}.main-panel{min-width:0}.train-card{overflow:hidden;margin-bottom:12px}.train-head{display:flex;justify-content:space-between;background:#11151b;color:#fff}.type{background:#111;color:#fff;font-size:22px;font-weight:900;padding:14px 18px}.train-service{display:flex;align-items:center;gap:12px;padding:0 18px;font-size:14px}.train-service b{font-size:20px}.train-service span{background:#fff;color:#111;padding:3px 8px;border-radius:6px;font-weight:800}.route-row{display:grid;grid-template-columns:1fr 45px 1fr auto;align-items:center;padding:18px}.route-end small,.train-number small{display:block;color:var(--muted);font-size:11px}.route-end strong{font-size:27px}.route-arrow{font-size:28px;text-align:center;color:var(--line-accent)}.train-number{text-align:right;padding-left:15px}.train-number strong{display:block;font-size:21px}.live-row{border-top:1px solid var(--line);padding:9px 14px;display:flex;gap:9px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:12px}.live-pill{display:inline-flex;align-items:center;gap:5px;background:#138a4814;color:var(--ok);padding:4px 7px;border-radius:999px;font-weight:900}.live-pill i{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.4s infinite}@keyframes pulse{50%{opacity:.3}}.mini-btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:5px 8px;font-size:11px}.mini-btn.active{color:var(--accent);border-color:var(--accent)}.position-card,.schedule-card,.timetable-card{padding:14px;margin-bottom:12px}.section-title{display:flex;justify-content:space-between;gap:10px;align-items:center;font-weight:900;margin-bottom:12px}.section-title small{font-size:11px;color:var(--muted);font-weight:600}.section-actions{display:flex;gap:5px}.route-map{display:flex;align-items:flex-start;gap:0;overflow-x:auto;padding:16px 10px 20px}.map-stop{position:relative;min-width:90px;text-align:center}.map-stop:before{content:"";position:absolute;top:13px;left:-45px;width:90px;height:5px;background:var(--line);z-index:0}.map-stop:first-child:before{display:none}.map-dot{position:relative;z-index:1;margin:0 auto 8px;width:28px;height:28px;border-radius:50%;border:6px solid var(--panel);background:#929aa5;box-shadow:0 0 0 2px #929aa5}.map-stop.passed .map-dot{background:var(--line-accent);box-shadow:0 0 0 2px var(--line-accent)}.map-stop.current .map-dot{background:#fff;box-shadow:0 0 0 3px var(--line-accent),0 0 0 8px color-mix(in srgb,var(--line-accent) 15%,transparent)}.map-stop.current .map-label{color:var(--line-accent);font-weight:900}.map-label{font-size:11px;white-space:nowrap}.map-time{font-size:10px;color:var(--muted);margin-top:3px}.map-legend{display:flex;gap:14px;color:var(--muted);font-size:10px;border-top:1px solid var(--line);padding-top:10px}.map-legend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px}.lg-current{border:2px solid var(--line-accent)}.lg-passed{background:var(--line-accent)}.lg-next{background:#929aa5}.table-wrap{overflow:auto;max-height:500px}.schedule-card table{width:100%;border-collapse:collapse}.schedule-card th,.schedule-card td{padding:10px 9px;border-bottom:1px solid var(--line);text-align:left}.schedule-card th{position:sticky;top:0;background:var(--panel2);font-size:11px;color:var(--muted)}.schedule-card td{font-size:13px}.schedule-card tr.current{background:#c400180b}.schedule-card tr.current td:first-child{border-left:4px solid var(--line-accent)}.station-link{border:0;background:transparent;color:var(--text);font-weight:700;padding:0}.star-btn{border:0;background:transparent;color:var(--accent);font-size:17px}.state{font-size:11px;border-radius:999px;padding:3px 7px;background:var(--panel2)}.state.now{color:var(--accent);background:#c4001815;font-weight:900}.state.done{color:var(--muted)}.table-wrap.compact td:nth-child(2),.table-wrap.compact td:nth-child(3),.table-wrap.compact th:nth-child(2),.table-wrap.compact th:nth-child(3){display:none}.timetable-list{display:grid;grid-template-columns:1fr 1fr}.tt-row{display:grid;grid-template-columns:65px 60px 1fr 55px;gap:8px;padding:9px;border-bottom:1px solid var(--line);align-items:center}.tt-row strong{font-size:18px}.tt-type{font-size:10px;border-radius:5px;background:var(--panel2);padding:4px;text-align:center}.tt-row em{font-size:9px;color:var(--accent);font-style:normal}.side-panel{display:flex;flex-direction:column;gap:12px}.clock-card,.next-card,.news-card,.settings-card,.favorites-card{padding:14px}.side-title{font-size:13px;font-weight:900;margin-bottom:9px}.clock-wrap{display:grid;place-items:center}.next-item{display:grid;grid-template-columns:auto 1fr auto;gap:9px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}.next-time{font-size:20px;font-weight:900}.next-main strong{display:block}.next-main small{color:var(--muted)}.next-tag{font-size:10px;background:var(--panel2);padding:4px 6px;border-radius:6px}.news-item{padding:9px 0;border-bottom:1px solid var(--line);font-size:12px}.news-item strong{display:block}.news-item small{display:block;color:var(--muted);margin-top:3px}.favorite-chip{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:999px;padding:7px 10px;margin:3px;font-size:11px}.empty{color:var(--muted);font-size:11px;padding:8px}.switch-row{display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}.switch-row input{display:none}.switch-row i{width:42px;height:24px;border-radius:20px;background:#8b94a0;position:relative}.switch-row i:after{content:"";position:absolute;width:18px;height:18px;top:3px;left:3px;border-radius:50%;background:white;transition:.2s}.switch-row input:checked+i{background:var(--accent)}.switch-row input:checked+i:after{left:21px}.wide-btn{width:100%;border:0;background:var(--accent);color:white;border-radius:10px;padding:10px;margin-top:10px;font-weight:800}.wide-btn.secondary{background:var(--panel2);color:var(--text)}.bottom-nav{position:fixed;z-index:30;bottom:0;left:0;right:0;height:70px;background:color-mix(in srgb,var(--panel) 94%,transparent);backdrop-filter:blur(16px);border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(5,1fr)}.nav-item{border:0;background:transparent;color:var(--muted);font-size:20px}.nav-item span{display:block;font-size:10px;margin-top:2px}.nav-item.active{color:var(--accent);font-weight:900}footer{text-align:center;color:var(--muted);font-size:10px;padding:18px}.toast{position:fixed;z-index:100;top:78px;left:50%;transform:translateX(-50%) translateY(-15px);opacity:0;pointer-events:none;background:#11151b;color:white;padding:9px 13px;border-radius:10px;box-shadow:var(--shadow);transition:.25s;font-size:12px}.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}dialog{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:16px;width:min(92vw,440px);box-shadow:0 30px 80px #0006;padding:0}dialog::backdrop{background:#0008}.dialog-head{display:flex;justify-content:space-between;padding:14px;border-bottom:1px solid var(--line)}.dialog-head button{border:0;background:transparent;color:var(--text);font-size:22px}.dialog-body{padding:14px}.menu-link{display:block;width:100%;padding:12px;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text)}.search-box{display:grid;grid-template-columns:1fr auto;gap:7px;margin-top:12px}.search-box input{margin:0}.search-box button{border:0;background:var(--accent);color:white;border-radius:10px;padding:0 14px}.search-result{display:flex;justify-content:space-between;width:100%;border:0;border-bottom:1px solid var(--line);background:transparent;color:var(--text);padding:10px}.search-result small{color:var(--muted)}.demo-note{color:var(--muted);font-size:11px;line-height:1.6}
+@media(max-width:850px){.dashboard{grid-template-columns:1fr}.side-panel{display:grid;grid-template-columns:1fr 1fr}.news-card,.settings-card,.favorites-card{grid-column:span 2}.control-grid{grid-template-columns:1fr 1fr}.route-row{grid-template-columns:1fr 35px 1fr}.train-number{grid-column:1/-1;text-align:left;padding:8px 0 0}.metrics{grid-template-columns:repeat(2,1fr)}.timetable-list{grid-template-columns:1fr}}
+@media(max-width:520px){.app-shell{padding:8px}.topbar{height:58px}.top-btn{font-size:12px}.brand{font-size:12px}.brand-mark{width:27px;height:27px}.icon-btn{width:31px}.hero-card{padding:14px}.hero-clock span{font-size:23px}h1{font-size:21px}.status-banner{align-items:flex-start;flex-wrap:wrap}.status-banner .updated{margin-left:22px}.status-banner button{font-size:11px}.route-end strong{font-size:23px}.side-panel{display:block}.clock-card,.next-card,.news-card,.settings-card,.favorites-card{margin-bottom:12px}.route-map{padding-left:4px}.map-stop{min-width:76px}.map-stop:before{left:-38px;width:76px}.bottom-nav{height:66px}.nav-item{font-size:18px}.tt-row{grid-template-columns:55px 50px 1fr 35px}}
+:root{--zoom:1}.app-shell,.detail-view{zoom:var(--zoom)}
+.train-search{margin-top:14px;padding:12px;border:1px dashed var(--line);border-radius:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel2)}.train-search strong{display:block;font-size:13px}.train-search small{display:block;color:var(--muted);font-size:10px;margin-top:3px}.train-search-box{display:flex;gap:7px;min-width:min(430px,48%)}.train-search-box input{margin:0}.train-search-box button{border:0;background:var(--accent);color:#fff;border-radius:10px;padding:0 16px;font-weight:800}.train-search-result{font-size:11px;color:var(--muted);padding:6px 2px;min-height:17px}
+.detail-view{padding-bottom:30px;min-height:calc(100vh - 64px);background:#fff;color:#111;font-family:Arial,'Noto Sans JP',sans-serif}.detail-top{height:64px;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;border-bottom:1px solid #222;background:#fff}.detail-top>button,.detail-tools button{height:44px;border:0;background:#fff;color:#0877d1;font-size:17px;padding:0 13px}.detail-top>button{text-align:left}.detail-title{text-align:center;font-size:20px}.detail-title small{display:block;font-size:11px;font-weight:400;margin-top:2px}.detail-tools{justify-self:end;display:flex;gap:1px}.detail-tools button{border:1px solid #222;color:#111;min-width:44px;border-radius:5px;font-size:22px}.detail-grid{display:grid;grid-template-columns:minmax(560px,1fr) 360px;max-width:1100px;margin:0 auto;border-left:1px solid #222;border-right:1px solid #222}.detail-left{border-right:2px solid #222}.detail-head{display:grid;grid-template-columns:2fr 1fr 1fr;height:122px;border-bottom:2px solid #222}.detail-type{background:#000;color:#fff;font-size:62px;display:grid;place-items:center;font-weight:500}.detail-code,.detail-cars{display:grid;place-items:center;border-left:1px solid #222;background:#fff}.detail-code b{font-size:58px;font-weight:400}.detail-cars{grid-template-columns:1fr auto;padding:0 20px}.detail-cars b{font-size:58px;font-weight:400}.detail-cars span{font-size:22px;align-self:end;margin-bottom:22px}.detail-route{height:112px;display:grid;grid-template-columns:1fr 1fr 1.45fr;border-bottom:2px solid #222}.detail-end{display:grid;grid-template-columns:42px 1fr;align-items:center;border-right:1px solid #222}.detail-end span{font-size:24px;text-align:center}.detail-end b{font-size:37px;font-weight:500;text-align:center}.detail-number{display:grid;grid-template-columns:1fr 70px;align-items:center}.detail-number b{font-size:54px;font-weight:400;text-align:center}.detail-number span{font-size:25px}.detail-table-wrap{overflow:auto}.detail-table{border-collapse:collapse;width:100%;table-layout:fixed}.detail-table th,.detail-table td{border-bottom:1px solid #222;border-right:1px solid #222;height:47px;padding:0 7px}.detail-table th{font-size:12px;background:#f5f5f5}.detail-table th:nth-child(1){width:42px}.detail-table th:nth-child(2){width:35%}.detail-table th:nth-child(3),.detail-table th:nth-child(4){width:31.5%}.detail-table td{font-size:25px}.detail-table td:nth-child(3),.detail-table td:nth-child(4){font-variant-numeric:tabular-nums}.detail-table .row-mark{font-size:12px;text-align:center;color:#e00072}.detail-table .detail-current{background:#fff4fa}.detail-table .detail-current td:nth-child(2){font-weight:700}.detail-right{background:#fff}.crew-state{height:70px;background:#ddd;border-bottom:2px solid #222;display:grid;place-items:center;font-size:36px}.detail-clock{text-align:center;padding:14px 10px 8px}.detail-clock canvas{width:min(220px,70vw);height:auto;display:block;margin:0 auto}.detail-clock strong{display:block;font-size:48px;font-weight:400;letter-spacing:4px;margin-top:3px}.article-box{border-top:2px solid #222;margin-top:2px;min-height:150px}.article-box>div{background:#999;color:#111;font-size:21px;padding:3px 7px}.article-box p{margin:7px;font-size:18px}.detail-view[hidden]{display:none!important}
+@media(max-width:760px){.train-search{display:block}.train-search-box{min-width:0;width:100%;margin-top:9px}.detail-grid{display:block;border:0}.detail-left{border-right:0}.detail-right{border-top:2px solid #222}.detail-head{height:92px}.detail-type{font-size:42px}.detail-code b,.detail-cars b{font-size:40px}.detail-cars span{font-size:15px;margin-bottom:16px}.detail-route{height:88px}.detail-end b{font-size:27px}.detail-end span{font-size:18px}.detail-number b{font-size:35px}.detail-number span{font-size:17px}.detail-table td{font-size:20px;height:42px}.crew-state{height:55px;font-size:28px}.detail-clock{display:grid;grid-template-columns:1fr;justify-items:center}.detail-clock strong{font-size:36px}.detail-top{grid-template-columns:1fr auto auto}.detail-title{font-size:15px}.detail-title small{display:none}.detail-tools button{min-width:34px;padding:0 7px;font-size:18px}}
+@media(max-width:520px){.train-search-box button{padding:0 12px}.detail-top{height:54px}.detail-top>button{font-size:14px;padding:0 7px}.detail-head{grid-template-columns:2fr 1fr 1fr}.detail-route{grid-template-columns:1fr 1fr 1.25fr}.detail-number{grid-template-columns:1fr 42px}.detail-number b{font-size:29px}.detail-number span{font-size:13px}.detail-table td{font-size:17px}.detail-table th{font-size:10px}.detail-clock strong{font-size:30px}.article-box{min-height:100px}}
+
+.data-status{font-size:10px;color:var(--muted);padding:6px 2px 0}.data-status.ok{color:#087f4f}.data-status.warn{color:#b36b00}.source-pill{display:inline-block;font-size:10px;padding:3px 6px;border-radius:999px;background:#eef7ff;color:#1769aa;margin-left:5px}
+
+.search-train-result{display:grid;grid-template-columns:auto 1fr;gap:2px 10px;width:100%;padding:9px;border:0;border-bottom:1px solid var(--line);background:var(--panel);color:var(--text);text-align:left}.search-train-result b{font-size:14px}.search-train-result span{font-weight:700}.search-train-result small{grid-column:1/-1;color:var(--muted);font-size:10px}
+
+
+/* PWA / driver-display fullscreen mode */
+html, body {
+  min-height: 100%;
+}
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+@media (display-mode: standalone) {
+  body { padding-bottom: env(safe-area-inset-bottom); }
+  .topbar { padding-top: env(safe-area-inset-top); height: calc(64px + env(safe-area-inset-top)); }
+  .bottom-nav { padding-bottom: env(safe-area-inset-bottom); height: calc(70px + env(safe-area-inset-bottom)); }
+}
+@media (display-mode: fullscreen), (display-mode: standalone) and (orientation: landscape) {
+  .detail-view {
+    min-height: 100dvh;
+    padding-bottom: 0;
+  }
+  .detail-grid {
+    width: 100%;
+    max-width: none;
+    min-height: calc(100dvh - 64px);
+  }
+  .detail-right {
+    min-width: 300px;
+  }
+  .bottom-nav, body > footer { display: none; }
+}
+html:fullscreen body { overflow: hidden; }
+html:fullscreen .detail-view { min-height: 100dvh; }
+html:fullscreen .detail-grid { min-height: 100dvh; }
+
+/* iPad / tablet driver-display sizing fix
+   The previous minmax(560px, 1fr) + 360px forced a ~920px minimum layout,
+   which could leave an unused strip on the right on iPad. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  html, body { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .topbar { width: 100%; }
+  .detail-view { width: 100%; max-width: 100%; overflow-x: hidden; }
+  .detail-grid {
+    width: 100%;
+    max-width: none;
+    grid-template-columns: minmax(0, 3fr) minmax(300px, 2fr);
+    margin: 0;
+  }
+  .detail-left { min-width: 0; }
+  .detail-right { min-width: 0; }
+  .detail-head { grid-template-columns: 2fr 1fr 1fr; }
+  .detail-route { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(180px, 1.45fr); }
+  .detail-number { min-width: 0; }
+  .detail-number b, .detail-end b { white-space: nowrap; }
+  .detail-table-wrap { width: 100%; overflow-x: hidden; }
+  .detail-table { width: 100%; }
+  .detail-clock canvas { width: min(220px, 32vw); height: auto; }
+}
+
+/* iPad portrait: keep the two-pane driver display while using the full width. */
+@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
+  .detail-grid { grid-template-columns: minmax(0, 60%) minmax(0, 40%); }
+  .detail-type { font-size: clamp(44px, 6vw, 62px); }
+  .detail-code b, .detail-cars b { font-size: clamp(40px, 5.5vw, 58px); }
+  .detail-end b { font-size: clamp(28px, 3.6vw, 37px); }
+  .detail-number b { font-size: clamp(38px, 5vw, 54px); }
+  .detail-table td { font-size: clamp(20px, 2.35vw, 25px); }
+  .crew-state { font-size: clamp(28px, 3.4vw, 36px); }
+  .detail-clock strong { font-size: clamp(34px, 4.5vw, 48px); }
+}
+
+/* v4: iPad portrait clock-fit fix
+   Keep the driver display at 100% scale. The digital clock must fit inside
+   the right pane instead of being clipped when the page is viewed at 1x. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .detail-right {
+    min-width: 0;
+    overflow: hidden;
+  }
+  .detail-clock {
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    padding-left: 6px;
+    padding-right: 6px;
+  }
+  .detail-clock canvas {
+    width: min(220px, 30vw, 100%);
+    max-width: 100%;
+    height: auto;
+  }
+  .detail-clock strong {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: clip;
+    font-size: clamp(27px, 3.65vw, 42px);
+    letter-spacing: clamp(0px, 0.18vw, 2px);
+    line-height: 1.15;
+  }
+}
+
+/* Portrait iPad: give the clock a little more room while retaining the
+   timetable/display balance. */
+@media (min-width: 761px) and (max-width: 1100px) and (orientation: portrait) {
+  .detail-grid {
+    grid-template-columns: minmax(0, 63%) minmax(0, 37%);
+  }
+  .detail-clock strong {
+    font-size: clamp(27px, 3.55vw, 40px);
+    letter-spacing: 0;
+  }
+}
+
+/* Driver-display immersive mode: hide the web app chrome while a train detail is open.
+   iPad/iPhone standalone mode cannot programmatically hide the OS status bar,
+   but all in-page header/footer controls are removed. */
+html:has(body.driver-mode),
+body.driver-mode {
+  background: #fff !important;
+}
+body.driver-mode {
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden;
+}
+body.driver-mode .topbar,
+body.driver-mode .bottom-nav,
+body.driver-mode > footer {
+  display: none !important;
+}
+body.driver-mode .detail-view {
+  display: block;
+  width: 100vw;
+  min-height: 100dvh;
+  height: 100dvh;
+  max-width: none;
+  overflow: hidden;
+  padding: 0;
+  margin: 0;
+}
+/* detail-top is intentionally kept: the white crew-name/title bar belongs to
+   the driver display. Only the normal black site header and bottom navigation
+   are removed. */
+body.driver-mode .detail-grid {
+  width: 100vw;
+  max-width: none;
+  min-height: 100dvh;
+  height: 100dvh;
+  margin: 0;
+}
+@supports (height: 100svh) {
+  body.driver-mode .detail-view,
+  body.driver-mode .detail-grid {
+    min-height: 100svh;
+    height: 100svh;
+  }
+}
+
+/* v7: 平日 / 土休日 切替 */
+.service-day-box {
+  display:flex; align-items:center; gap:8px; margin-top:10px;
+  flex-wrap:wrap;
+}
+.service-day-box label { font-size:12px; font-weight:700; color:var(--muted); }
+.service-day-box select {
+  min-width:120px; height:38px; border:1px solid var(--line);
+  border-radius:8px; background:var(--panel); color:var(--text);
+  padding:0 10px; font-size:14px; font-weight:700;
+}
+.service-day-box .mini-btn { height:36px; }
+@media(max-width:520px){
+  .service-day-box { gap:6px; }
+  .service-day-box select { flex:1; min-width:0; }
+}
+
+/* =========================================================
+   v9 乗務員表示再現：参照スクショ寄せ
+   時刻表JSON/PDF解析ロジックは変更せず、詳細画面の見た目だけを再構成。
+   ========================================================= */
+.detail-view{
+  padding:0!important; min-height:100dvh!important; background:#fff!important; color:#111!important;
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif!important;
+  font-weight:400; overflow:hidden;
+}
+.detail-top{
+  height:70px!important; grid-template-columns:1fr auto 1fr!important;
+  border-bottom:1px solid #222!important; background:#fff!important;
+}
+.detail-top>button,.detail-tools button{
+  height:48px!important; background:#fff!important; color:#0877d1!important;
+  font-size:22px!important; font-weight:400; padding:0 16px!important;
+}
+.detail-title{font-size:25px!important;font-weight:700;line-height:1.05}
+.detail-title small{font-size:12px!important;color:#555;margin-top:5px!important}
+.detail-tools{gap:2px!important}
+.detail-tools button{border:1px solid #222!important;color:#111!important;min-width:58px!important;border-radius:5px!important;font-size:27px!important}
+.detail-grid{
+  display:grid!important; grid-template-columns:minmax(0,63%) minmax(0,37%)!important;
+  width:100vw!important; max-width:none!important; margin:0!important;
+  border-left:0!important;border-right:0!important; min-height:calc(100dvh - 70px)!important;
+}
+.detail-left{border-right:2px solid #222!important;min-width:0}
+.detail-head{
+  height:122px!important; display:grid!important;
+  grid-template-columns:2fr 1fr 1fr 1fr!important;
+  border-bottom:2px solid #222!important;
+}
+.detail-type{
+  /* 色はapp.jsのTRAIN_TYPE_STYLEから種別ごとに適用 */
+  background:#fff;color:#111;font-size:64px!important;font-weight:700!important;
+  letter-spacing:.04em; border-right:1px solid #222; display:grid!important;place-items:center!important;
+  border-radius:0!important;
+}
+.detail-cars,.detail-code,.detail-notice{
+  display:grid!important;place-items:center!important;background:#fff!important;border-left:1px solid #222!important;
+  border-radius:0!important;
+}
+.detail-cars{grid-template-columns:1fr auto!important;padding:0 17px!important}
+.detail-cars b,.detail-code b{font-size:58px!important;font-weight:400!important}
+.detail-cars span{font-size:22px!important;align-self:end!important;margin:0 0 22px 2px!important}
+.detail-notice{font-size:45px!important;font-weight:400!important}
+.detail-route{
+  height:108px!important;display:grid!important;grid-template-columns:1fr 1fr 1.65fr!important;
+  border-bottom:2px solid #222!important;
+}
+.detail-end{display:grid!important;grid-template-columns:42px 1fr!important;align-items:center!important;border-right:1px solid #222!important}
+.detail-end span{font-size:25px!important;text-align:center!important}
+.detail-end b{font-size:39px!important;font-weight:500!important;text-align:center!important;white-space:nowrap}
+.detail-number{display:grid!important;grid-template-columns:1fr 68px!important;align-items:center!important}
+.detail-number b{font-size:55px!important;font-weight:400!important;text-align:center!important;white-space:nowrap}
+.detail-number span{font-size:25px!important}
+.detail-table-wrap{overflow:hidden!important;height:calc(100dvh - 300px)!important}
+.detail-table{border-collapse:collapse!important;width:100%!important;table-layout:fixed!important}
+.detail-table th,.detail-table td{border-bottom:1px solid #222!important;border-right:1px solid #222!important;height:48px!important;padding:0 8px!important}
+.detail-table th{font-size:14px!important;background:#f5f5f5!important;font-weight:700!important}
+.detail-table th:nth-child(1){width:54px!important}.detail-table th:nth-child(2){width:35%!important}.detail-table th:nth-child(3),.detail-table th:nth-child(4){width:31.5%!important}
+.detail-table td{font-size:26px!important;font-weight:400!important;line-height:1!important}
+.detail-table td:first-child{text-align:center;font-size:17px!important}
+.detail-table td:nth-child(2){font-weight:400}
+.detail-table td:nth-child(3),.detail-table td:nth-child(4){font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.detail-table .detail-current{background:#fff1f8!important}
+.detail-table .detail-current td:nth-child(2){font-weight:700!important}
+.detail-table .detail-crew-switch{background:#dedede!important}
+.detail-table .detail-crew-switch td{background:#dedede!important}
+.detail-table .detail-crew-switch td:nth-child(2){font-weight:500!important}
+.detail-table .row-mark{font-size:12px!important;text-align:center;color:#e00072}
+.detail-right{background:#fff!important;min-width:0;overflow:hidden!important}
+.crew-state{
+  height:70px!important;background:#dcdcdc!important;border-bottom:2px solid #222!important;
+  display:grid!important;place-items:center!important;font-size:37px!important;font-weight:500!important;
+}
+.detail-clock{text-align:center!important;padding:17px 10px 9px!important;overflow:hidden!important}
+.detail-clock canvas{width:min(250px,75%)!important;height:auto!important;display:block!important;margin:0 auto!important}
+.detail-clock strong{display:block!important;font-size:43px!important;font-weight:400!important;letter-spacing:2px!important;margin-top:6px!important;white-space:nowrap!important}
+.article-box{border-top:2px solid #222!important;margin-top:0!important;min-height:170px!important}
+.article-box>div{background:#999!important;color:#111!important;font-size:23px!important;font-weight:400!important;padding:3px 8px!important}
+.article-box p{margin:8px!important;font-size:20px!important;line-height:1.55!important}
+
+/* v10: 参照スクショの罫線・文字配置に合わせた細部調整 */
+.detail-head > *{min-width:0!important}
+.detail-type{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif!important}
+.detail-cars b,.detail-code b,.detail-number b,.detail-end b,.detail-notice,.crew-state,.detail-clock strong{
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif!important;
+}
+.detail-cars b,.detail-code b{line-height:1!important}
+.detail-notice{line-height:1!important;white-space:nowrap!important}
+.detail-route > *{min-width:0!important}
+.detail-table td,.detail-table th{vertical-align:middle!important}
+.detail-table .detail-crew-switch td{background:#dedede!important}
+.detail-table .detail-crew-switch td:nth-child(2){font-weight:500!important}
+.detail-view[hidden]{display:none!important}
+
+/* 乗務区切替時のグレー表示 */
+.crew-segment-label{font-size:.46em!important;color:#555!important;margin-left:8px;vertical-align:middle}
+
+@media (min-width:761px) and (max-width:1100px) and (orientation:portrait){
+  .detail-top{height:70px!important}
+  .detail-grid{grid-template-columns:63% 37%!important;min-height:calc(100dvh - 70px)!important}
+  .detail-type{font-size:clamp(45px,6.2vw,64px)!important}
+  .detail-cars b,.detail-code b{font-size:clamp(38px,5.6vw,58px)!important}
+  .detail-notice{font-size:clamp(31px,4.3vw,45px)!important}
+  .detail-end b{font-size:clamp(26px,3.8vw,39px)!important}
+  .detail-number b{font-size:clamp(37px,5.3vw,55px)!important}
+  .detail-table td{font-size:clamp(19px,2.55vw,26px)!important}
+  .crew-state{font-size:clamp(28px,3.8vw,37px)!important}
+  .detail-clock canvas{width:min(250px,75%,27vw)!important}
+  .detail-clock strong{font-size:clamp(27px,3.7vw,43px)!important}
+}
+@media (max-width:760px){
+  .detail-top{height:58px!important}
+  .detail-grid{display:grid!important;grid-template-columns:63% 37%!important;min-height:calc(100dvh - 58px)!important}
+  .detail-head{height:92px!important}
+  .detail-type{font-size:clamp(30px,7vw,46px)!important}
+  .detail-cars b,.detail-code b{font-size:clamp(26px,6vw,40px)!important}
+  .detail-cars span{font-size:12px!important;margin-bottom:13px!important}
+  .detail-notice{font-size:clamp(21px,5vw,31px)!important}
+  .detail-route{height:82px!important}
+  .detail-end{grid-template-columns:27px 1fr!important}
+  .detail-end span{font-size:15px!important}.detail-end b{font-size:clamp(18px,4vw,27px)!important}
+  .detail-number{grid-template-columns:1fr 37px!important}.detail-number b{font-size:clamp(22px,5vw,31px)!important}.detail-number span{font-size:12px!important}
+  .detail-table-wrap{height:calc(100dvh - 232px)!important}
+  .detail-table th{font-size:9px!important}.detail-table td{font-size:clamp(13px,3.5vw,20px)!important;height:42px!important;padding:0 4px!important}
+  .crew-state{height:52px!important;font-size:clamp(19px,4.8vw,28px)!important}
+  .detail-clock{padding:8px 4px!important}.detail-clock canvas{width:min(150px,82%)!important}.detail-clock strong{font-size:clamp(19px,4.3vw,31px)!important;letter-spacing:0!important}
+  .article-box>div{font-size:16px!important}.article-box p{font-size:13px!important;margin:5px!important}
+}
+
+/* v11: 発・着ブロックを参照写真の2段構成に固定 */
+.detail-route{grid-template-columns:1fr 1fr 1.65fr!important;grid-template-rows:1fr 1fr!important;height:108px!important}
+.detail-end.departure{grid-column:1!important;grid-row:1!important}
+.detail-end.arrival{grid-column:1!important;grid-row:2!important}
+.detail-number{grid-column:2 / 4!important;grid-row:1 / 3!important}
+.detail-end.departure{border-bottom:1px solid #222!important}
+.detail-end span{font-size:24px!important}
+.detail-end b{font-size:40px!important}
+.detail-number b{font-size:55px!important}
+.detail-number span{font-size:24px!important}
+@media (min-width:761px) and (max-width:1100px) and (orientation:portrait){
+  .detail-route{height:108px!important;grid-template-columns:1fr 1fr 1.65fr!important;grid-template-rows:1fr 1fr!important}
+  .detail-end span{font-size:22px!important}.detail-end b{font-size:clamp(30px,4vw,40px)!important}
+  .detail-number b{font-size:clamp(42px,5.3vw,55px)!important}.detail-number span{font-size:22px!important}
+}
+@media(max-width:760px){
+  .detail-route{height:82px!important;grid-template-columns:1fr 1fr 1.55fr!important;grid-template-rows:1fr 1fr!important}
+  .detail-end.departure{grid-column:1!important;grid-row:1!important}.detail-end.arrival{grid-column:1!important;grid-row:2!important}
+  .detail-number{grid-column:2 / 4!important;grid-row:1 / 3!important}
+  .detail-end span{font-size:15px!important}.detail-end b{font-size:clamp(20px,4vw,28px)!important}
+  .detail-number b{font-size:clamp(25px,5vw,34px)!important}.detail-number span{font-size:13px!important}
+}
+
+/* =========================================================
+   v13: 参照写真の「発・着・駅名・列車」部分を再調整
+   - 左右比率を写真に合わせて約52:48
+   - 発/着は細い専用列、駅名はその右
+   - 列車番号と「列車」を別セルに配置
+   - 行先の長さに応じてJSが --station-size を自動調整
+   ========================================================= */
+.detail-view{font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue","Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif!important;background:#fff!important}
+.detail-top{height:70px!important}
+.detail-head{
+  width:100vw!important;
+  height:92px!important;
+  display:grid!important;
+  grid-template-columns:44.5% 17.5% 20.5% 17.5%!important;
+  border-top:1px solid #222!important;
+  border-bottom:2px solid #222!important;
+}
+.detail-head > *{min-width:0!important;border-radius:0!important}
+.detail-type{font-size:58px!important;font-weight:700!important;letter-spacing:.03em!important;border-right:1px solid #222!important}
+.detail-cars,.detail-code,.detail-notice{background:#fff!important;border-left:0!important;border-right:1px solid #222!important}
+.detail-cars{display:grid!important;grid-template-columns:auto auto!important;place-content:center!important;align-items:end!important;gap:3px!important;padding:0!important}
+.detail-cars b{font-size:55px!important;font-weight:400!important;line-height:.9!important}
+.detail-cars span{font-size:22px!important;margin:0 0 2px!important;align-self:end!important}
+.detail-code{display:grid!important;place-items:center!important}
+.detail-code b{font-size:57px!important;font-weight:400!important;line-height:1!important}
+.detail-notice{display:grid!important;place-items:center!important;font-size:43px!important;font-weight:400!important;line-height:1!important}
+
+.detail-grid{
+  display:grid!important;
+  grid-template-columns:52% 48%!important;
+  width:100vw!important;
+  max-width:none!important;
+  margin:0!important;
+  min-height:calc(100dvh - 162px)!important;
+  border:0!important;
+}
+.detail-left{border-right:2px solid #222!important;min-width:0!important}
+
+/* 写真の下段：発/着 → 駅名 → 列車番号 → 列車 */
+.detail-route{
+  height:118px!important;
+  display:grid!important;
+  grid-template-columns:54px minmax(95px, 1.15fr) minmax(125px, 1.75fr) 58px!important;
+  grid-template-rows:1fr 1fr!important;
+  border-bottom:2px solid #222!important;
+  min-width:0!important;
+}
+.detail-end{
+  display:grid!important;
+  grid-template-columns:54px minmax(0,1fr)!important;
+  align-items:center!important;
+  min-width:0!important;
+  border-right:1px solid #222!important;
+  overflow:hidden!important;
+}
+.detail-end.departure{grid-column:1 / 3!important;grid-row:1!important;border-bottom:1px solid #222!important}
+.detail-end.arrival{grid-column:1 / 3!important;grid-row:2!important}
+.detail-end span{
+  font-size:25px!important;
+  text-align:center!important;
+  font-weight:400!important;
+  white-space:nowrap!important;
+}
+.detail-end b{
+  --station-size:32px;
+  font-size:var(--station-size)!important;
+  font-weight:400!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+  padding:0 5px!important;
+  line-height:1.05!important;
+  min-width:0!important;
+}
+.detail-number{
+  grid-column:3 / 5!important;
+  grid-row:1 / 3!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1fr) 58px!important;
+  align-items:center!important;
+  min-width:0!important;
+  border-left:0!important;
+  overflow:hidden!important;
+}
+.detail-number b{
+  font-size:40px!important;
+  font-weight:400!important;
+  text-align:center!important;
+  white-space:nowrap!important;
+  overflow:hidden!important;
+  text-overflow:clip!important;
+  min-width:0!important;
+  padding:0 3px!important;
+}
+.detail-number span{font-size:24px!important;white-space:nowrap!important;text-align:center!important}
+
+.detail-table-wrap{height:calc(100dvh - 280px)!important;overflow:hidden!important}
+.detail-table th,.detail-table td{height:42px!important;padding:0 6px!important;border-bottom:1px solid #222!important;border-right:1px solid #222!important}
+.detail-table th{font-size:12px!important}
+.detail-table th:nth-child(1){width:54px!important}.detail-table th:nth-child(2){width:34%!important}.detail-table th:nth-child(3),.detail-table th:nth-child(4){width:33%!important}
+.detail-table td{font-size:20px!important}.detail-table td:first-child{font-size:14px!important}
+.detail-right{min-width:0!important;background:#fff!important;border:0!important;overflow:hidden!important}
+.crew-state{height:92px!important;background:#ddd!important;border-bottom:2px solid #222!important;font-size:38px!important;font-weight:500!important}
+.detail-clock{padding:18px 10px 10px!important;text-align:center!important}
+.detail-clock canvas{width:min(235px,58%)!important;height:auto!important;display:block!important;margin:0 auto!important}
+.detail-clock strong{font-size:39px!important;letter-spacing:2px!important;margin-top:8px!important;font-weight:400!important}
+.article-box{border-top:2px solid #222!important;margin-top:0!important}
+.article-box>div{font-size:22px!important;background:#999!important;padding:3px 8px!important}
+.article-box p{font-size:18px!important;line-height:1.45!important;margin:8px!important}
+
+@media (max-width:760px){
+  .detail-top{height:58px!important}
+  .detail-head{height:92px!important;grid-template-columns:44.5% 17.5% 20.5% 17.5%!important}
+  .detail-type{font-size:clamp(32px,8vw,52px)!important}
+  .detail-cars b{font-size:clamp(32px,7vw,50px)!important}.detail-cars span{font-size:15px!important}
+  .detail-code b{font-size:clamp(34px,7vw,52px)!important}.detail-notice{font-size:clamp(24px,5.5vw,40px)!important}
+  .detail-grid{grid-template-columns:52% 48%!important;min-height:calc(100dvh - 150px)!important}
+  .detail-route{height:98px!important;grid-template-columns:40px minmax(72px,1.1fr) minmax(92px,1.7fr) 42px!important}
+  .detail-end{grid-template-columns:40px minmax(0,1fr)!important}
+  .detail-end span{font-size:16px!important}
+  .detail-end b{font-size:clamp(18px,4.2vw,28px)!important;padding:0 3px!important}
+  .detail-number{grid-template-columns:minmax(0,1fr) 42px!important}
+  .detail-number b{font-size:clamp(24px,5.8vw,38px)!important}
+  .detail-number span{font-size:15px!important}
+  .detail-table-wrap{height:calc(100dvh - 248px)!important}
+  .detail-table th{font-size:9px!important}.detail-table td{font-size:clamp(13px,3.2vw,19px)!important;height:38px!important}
+  .crew-state{height:70px!important;font-size:clamp(22px,5vw,34px)!important}
+  .detail-clock canvas{width:min(180px,70%)!important}.detail-clock strong{font-size:clamp(20px,4.8vw,34px)!important}
+}
+
+
+/* =========================================================
+   v14: 参照写真に合わせた最終レイアウト調整
+   - 下段の左表示幅を写真比率へ（約45%）
+   - 発/着を細い列、駅名、列車番号、列車をコンパクトに
+   - 罫線1px中心
+   - 時計を小型化
+   - 長い駅名/列車番号はJSのfit処理を優先
+   ========================================================= */
+.detail-view{overflow:hidden!important}
+.detail-top{height:58px!important;border-bottom:1px solid #222!important}
+.detail-head{height:92px!important;grid-template-columns:45% 17.5% 20.5% 17%!important;border-top:1px solid #222!important;border-bottom:1px solid #222!important}
+.detail-type{font-size:54px!important;font-weight:700!important;border-right:1px solid #222!important}
+.detail-cars,.detail-code,.detail-notice{border-right:1px solid #222!important}
+.detail-cars b{font-size:48px!important}
+.detail-cars span{font-size:19px!important;margin-bottom:8px!important}
+.detail-code b{font-size:50px!important}
+.detail-notice{font-size:39px!important}
+.detail-grid{grid-template-columns:45.5% 54.5%!important;min-height:calc(100dvh - 150px)!important}
+.detail-left{border-right:1px solid #222!important}
+.detail-route{height:92px!important;grid-template-columns:43px minmax(0,1fr) minmax(0,1fr) 40px!important;grid-template-rows:1fr 1fr!important;border-bottom:1px solid #222!important}
+.detail-end{grid-template-columns:43px minmax(0,1fr)!important;border-right:1px solid #222!important}
+.detail-end.departure{grid-column:1 / 3!important;grid-row:1!important;border-bottom:1px solid #222!important}
+.detail-end.arrival{grid-column:1 / 3!important;grid-row:2!important}
+.detail-end span{font-size:20px!important}
+.detail-end b{font-size:clamp(20px,3.1vw,30px)!important;padding:0 2px!important}
+.detail-number{grid-column:3 / 5!important;grid-row:1 / 3!important;grid-template-columns:minmax(0,1fr) 40px!important}
+.detail-number b{font-size:clamp(27px,4vw,40px)!important;padding:0 2px!important}
+.detail-number span{font-size:18px!important}
+.detail-table-wrap{height:calc(100dvh - 242px)!important}
+.detail-table th,.detail-table td{height:36px!important;padding:0 4px!important;border-bottom:1px solid #222!important;border-right:1px solid #222!important}
+.detail-table th{font-size:10px!important}
+.detail-table th:nth-child(1){width:35px!important}
+.detail-table th:nth-child(2){width:39%!important}
+.detail-table th:nth-child(3),.detail-table th:nth-child(4){width:30.5%!important}
+.detail-table td{font-size:17px!important}
+.detail-table td:first-child{font-size:12px!important}
+.crew-state{height:58px!important;border-bottom:1px solid #222!important;font-size:29px!important}
+.detail-clock{padding:10px 5px 6px!important}
+.detail-clock canvas{width:min(125px,38%)!important;height:auto!important}
+.detail-clock strong{font-size:29px!important;letter-spacing:1px!important;margin-top:5px!important}
+.article-box{border-top:1px solid #222!important;margin-top:0!important}
+.article-box>div{font-size:19px!important;padding:2px 6px!important}
+.article-box p{font-size:15px!important;line-height:1.4!important;margin:6px!important}
+
+@media (max-width:760px){
+ .detail-head{height:86px!important;grid-template-columns:45% 17.5% 20.5% 17%!important}
+ .detail-type{font-size:clamp(34px,7vw,50px)!important}
+ .detail-cars b{font-size:clamp(30px,6.5vw,46px)!important}
+ .detail-cars span{font-size:13px!important;margin-bottom:7px!important}
+ .detail-code b{font-size:clamp(31px,6.8vw,48px)!important}
+ .detail-notice{font-size:clamp(23px,5.2vw,37px)!important}
+ .detail-grid{grid-template-columns:45.5% 54.5%!important;min-height:calc(100dvh - 144px)!important}
+ .detail-route{height:86px!important;grid-template-columns:31px minmax(0,1fr) minmax(0,1fr) 30px!important}
+ .detail-end{grid-template-columns:31px minmax(0,1fr)!important}
+ .detail-end span{font-size:14px!important}
+ .detail-end b{font-size:clamp(17px,4vw,26px)!important}
+ .detail-number{grid-template-columns:minmax(0,1fr) 30px!important}
+ .detail-number b{font-size:clamp(22px,5vw,32px)!important}
+ .detail-number span{font-size:13px!important}
+ .detail-table-wrap{height:calc(100dvh - 230px)!important}
+ .detail-table td{font-size:clamp(12px,3.1vw,17px)!important;height:34px!important}
+ .crew-state{height:52px!important;font-size:clamp(20px,4.5vw,27px)!important}
+ .detail-clock canvas{width:min(120px,55%)!important}
+ .detail-clock strong{font-size:clamp(18px,4.2vw,28px)!important}
+}
+
+/* v15: 運転台時刻表の選択・秒表示 */
+.detail-table .schedule-selectable,
+#scheduleTable .schedule-selectable { cursor:pointer; -webkit-tap-highlight-color:transparent; }
+.detail-table .schedule-selectable.selected-row,
+#scheduleTable .schedule-selectable.selected-row {
+  background:#f4c400 !important;
+  color:#111 !important;
+}
+.detail-table .schedule-selectable.selected-row td,
+#scheduleTable .schedule-selectable.selected-row td { background:#f4c400 !important; color:#111 !important; }
+.detail-table .time-sec,
+#scheduleTable .time-sec {
+  display:inline-block;
+  margin-left:5px;
+  font-size:.58em;
+  line-height:1;
+  vertical-align:top;
+  position:relative;
+  top:.02em;
+  font-weight:500;
+}
+.detail-table .time-sec-zero,
+#scheduleTable .time-sec-zero {
+  background:#ff55b8 !important;
+  color:#111 !important;
+  padding:1px 2px 2px;
+  margin-left:5px;
+  min-width:1.65em;
+  text-align:center;
+}
+.detail-table .selected-row .time-sec-zero,
+#scheduleTable .selected-row .time-sec-zero {
+  background:#ff55b8 !important;
+}
+\n\n/* v16: タッチ選択を最優先で表示 */\n.detail-table tr.schedule-selectable,\n#scheduleTable tr.schedule-selectable {\n  cursor: pointer !important;\n  touch-action: manipulation !important;\n  -webkit-user-select: none !important;\n  user-select: none !important;\n  -webkit-tap-highlight-color: rgba(244,196,0,.25) !important;\n}\n.detail-table tr.schedule-selectable.selected-row > td,\n#scheduleTable tr.schedule-selectable.selected-row > td {\n  background-color: #f4c400 !important;\n  color: #111 !important;\n}\n.detail-table tr.schedule-selectable.selected-row .time-sec-zero,\n#scheduleTable tr.schedule-selectable.selected-row .time-sec-zero {\n  background-color: #ff55b8 !important;\n  color: #111 !important;\n}\n.detail-table .time-main,\n#scheduleTable .time-main { white-space: nowrap !important; }\n.detail-table .time-sec,\n#scheduleTable .time-sec {\n  display: inline-block !important;\n  font-size: .56em !important;\n  margin-left: 4px !important;\n  vertical-align: super !important;\n  line-height: 1 !important;\n  min-width: 1.2em;\n}\n.detail-table .time-sec-zero,\n#scheduleTable .time-sec-zero {\n  background: #ff55b8 !important;\n  padding: 1px 2px !important;\n  min-width: 1.55em !important;\n  text-align: center !important;\n}\n
+/* v21: 参照写真に合わせた停車確認パネル */
+.driver-stop-alert{
+  position:absolute;
+  z-index:80;
+  left:0;
+  right:0;
+  top:280px;
+  bottom:0;
+  display:block;
+  pointer-events:none;
+}
+.driver-stop-alert[hidden]{display:none!important}
+.driver-stop-panel{
+  position:absolute;
+  left:0;
+  top:0;
+  bottom:0;
+  width:50%;
+  max-width:510px;
+  min-width:320px;
+  background:#ed0013;
+  color:#fff;
+  pointer-events:auto;
+  display:flex;
+  flex-direction:column;
+  padding:24px 28px 26px;
+  box-sizing:border-box;
+}
+.driver-stop-cars{text-align:center;font-size:58px;line-height:1.05;margin-top:0}
+.driver-stop-cars span{font-size:30px;margin-left:3px}
+.driver-stop-station{text-align:center;font-size:48px;font-weight:700;line-height:1.12;margin-top:20px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.driver-stop-times{margin-top:58px}
+.driver-stop-times>div{display:grid;grid-template-columns:43% 57%;align-items:baseline;margin:0 0 20px}
+.driver-stop-times span{font-size:29px;white-space:nowrap}
+.driver-stop-times b{font-size:32px;font-weight:400;white-space:nowrap}
+#stopConfirmButton{margin-top:auto;height:68px;min-height:68px;border:0;background:#ffd400;color:#111;font-size:30px;font-weight:700}
+#stopConfirmButton.confirmed{background:#ffd400}
+#stopSimOpen{font-size:14px!important;min-width:64px}
+#stopSimDialog{width:min(390px,calc(100vw - 30px));border:1px solid #555;border-radius:12px;padding:16px;box-shadow:0 10px 40px rgba(0,0,0,.3)}
+#stopSimDialog::backdrop{background:rgba(0,0,0,.35)}
+.stop-sim-head{display:flex;align-items:center;justify-content:space-between;font-size:20px;margin-bottom:12px}
+.stop-sim-head button{border:0;background:transparent;font-size:28px}
+#stopSimDialog label{display:block;font-size:15px;margin:10px 0}
+#stopSimDialog input{display:block;width:100%;box-sizing:border-box;margin-top:6px;padding:10px;border:1px solid #777;border-radius:6px;font-size:18px}
+.stop-sim-row,.stop-sim-speed{display:flex;gap:6px;margin:8px 0}
+.stop-sim-row button,.stop-sim-speed button{flex:1;padding:9px;border:1px solid #555;border-radius:6px;background:#eee}
+#stopSimEvent{background:#ffd400;font-weight:700}
+#stopSimReadout{font-size:24px;font-variant-numeric:tabular-nums;margin:12px 0}
+@media(max-width:900px){
+  .driver-stop-alert{top:232px}
+  .driver-stop-panel{width:48%;min-width:290px;max-width:none;padding:18px 18px 20px}
+  .driver-stop-cars{font-size:50px}
+  .driver-stop-cars span{font-size:25px}
+  .driver-stop-station{font-size:38px;margin-top:14px}
+  .driver-stop-times{margin-top:42px}
+  .driver-stop-times>div{grid-template-columns:42% 58%;margin-bottom:15px}
+  .driver-stop-times span{font-size:22px}
+  .driver-stop-times b{font-size:25px}
+  #stopConfirmButton{height:56px;min-height:56px;font-size:24px}
+}
+@media(max-width:520px){
+  .driver-stop-alert{top:220px}
+  .driver-stop-panel{width:52%;min-width:0;padding:14px 10px 14px}
+  .driver-stop-cars{font-size:36px}
+  .driver-stop-cars span{font-size:18px}
+  .driver-stop-station{font-size:25px;margin-top:10px}
+  .driver-stop-times{margin-top:25px}
+  .driver-stop-times>div{grid-template-columns:1fr;margin-bottom:10px}
+  .driver-stop-times span{font-size:16px}
+  .driver-stop-times b{font-size:18px}
+  #stopConfirmButton{height:44px;min-height:44px;font-size:18px}
+}
+
+
+/* v23: 停車確認ボタンを常に赤パネル内の下端に表示 */
+.driver-stop-alert{overflow:visible!important}
+.driver-stop-panel{
+  height:calc(100dvh - 280px)!important;
+  min-height:300px!important;
+  max-height:none!important;
+  overflow:visible!important;
+  position:relative!important;
+}
+#stopConfirmButton{
+  position:absolute!important;
+  left:6%!important;
+  right:6%!important;
+  bottom:18px!important;
+  width:88%!important;
+  margin:0!important;
+  display:block!important;
+  visibility:visible!important;
+  opacity:1!important;
+  z-index:999!important;
+  pointer-events:auto!important;
+}
+@media(max-width:760px){
+  .driver-stop-panel{height:calc(100dvh - 220px)!important;min-height:260px!important}
+  #stopConfirmButton{bottom:10px!important;height:50px!important;min-height:50px!important;font-size:20px!important}
+}
+
+
+/* =========================================================
+   v24 FINAL: 停車確認パネルを運転台左側へ確実に固定
+   - 全画面オーバーレイにしない
+   - 右側の時計・記事を覆わない
+   - ボタンを必ずパネル内の下端に表示
+   ========================================================= */
+.detail-view {
+  position: relative !important;
+}
+
+.driver-stop-alert {
+  position: absolute !important;
+  z-index: 100 !important;
+  left: 0 !important;
+  top: 242px !important;
+  width: 45.5vw !important;
+  height: calc(100dvh - 242px) !important;
+  right: auto !important;
+  bottom: auto !important;
+  display: block !important;
+  pointer-events: none !important;
+  overflow: hidden !important;
+}
+
+.driver-stop-alert[hidden] {
+  display: none !important;
+}
+
+.driver-stop-panel {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 18px 18px 20px !important;
+  background: #ed0013 !important;
+  color: #fff !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  pointer-events: auto !important;
+  box-sizing: border-box !important;
+}
+
+.driver-stop-cars {
+  flex: 0 0 auto !important;
+  text-align: center !important;
+  font-size: clamp(34px, 4.6vw, 58px) !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+.driver-stop-cars span {
+  font-size: .52em !important;
+  margin-left: 3px !important;
+}
+
+.driver-stop-station {
+  flex: 0 0 auto !important;
+  text-align: center !important;
+  font-size: clamp(26px, 3.5vw, 46px) !important;
+  font-weight: 700 !important;
+  line-height: 1.15 !important;
+  margin-top: 14px !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+}
+
+.driver-stop-times {
+  flex: 0 0 auto !important;
+  margin-top: clamp(28px, 4vw, 55px) !important;
+}
+
+.driver-stop-times > div {
+  display: grid !important;
+  grid-template-columns: 42% 58% !important;
+  align-items: baseline !important;
+  margin: 0 0 clamp(10px, 1.6vw, 20px) !important;
+}
+
+.driver-stop-times span {
+  font-size: clamp(16px, 2.2vw, 29px) !important;
+  white-space: nowrap !important;
+}
+
+.driver-stop-times b {
+  font-size: clamp(17px, 2.4vw, 32px) !important;
+  font-weight: 400 !important;
+  white-space: nowrap !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+#stopConfirmButton {
+  position: static !important;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  height: clamp(48px, 5.5vw, 68px) !important;
+  min-height: clamp(48px, 5.5vw, 68px) !important;
+  margin: auto 0 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: #ffd400 !important;
+  color: #111 !important;
+  font-size: clamp(19px, 2.5vw, 30px) !important;
+  font-weight: 700 !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  z-index: 101 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+  -webkit-appearance: none !important;
+  appearance: none !important;
+}
+
+#stopConfirmButton:active {
+  transform: none !important;
+  filter: brightness(.92);
+}
+
+@media (max-width: 760px) {
+  .driver-stop-alert {
+    top: 236px !important;
+    width: 45.5vw !important;
+    height: calc(100dvh - 236px) !important;
+  }
+  .driver-stop-panel {
+    padding: 14px 10px 12px !important;
+  }
+  .driver-stop-times {
+    margin-top: 24px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .driver-stop-alert {
+    top: 230px !important;
+    width: 45.5vw !important;
+    height: calc(100dvh - 230px) !important;
+  }
+  .driver-stop-panel {
+    padding: 12px 8px 10px !important;
+  }
+  .driver-stop-cars {
+    font-size: clamp(28px, 8vw, 38px) !important;
+  }
+  .driver-stop-station {
+    font-size: clamp(20px, 5.8vw, 28px) !important;
+    margin-top: 8px !important;
+  }
+  .driver-stop-times {
+    margin-top: 18px !important;
+  }
+  .driver-stop-times > div {
+    grid-template-columns: 1fr !important;
+    margin-bottom: 7px !important;
+  }
+  .driver-stop-times span {
+    font-size: 14px !important;
+  }
+  .driver-stop-times b {
+    font-size: 17px !important;
+  }
+  #stopConfirmButton {
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 18px !important;
+  }
+}
+
+
+/* v25: iPad/Safari向け 停車確認ボタンの最終固定 */
+#stopAlert:not([hidden]) .driver-stop-panel {
+  position: relative !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+}
+#stopAlert:not([hidden]) #stopConfirmButton {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+  left: 12px !important;
+  right: 12px !important;
+  bottom: 12px !important;
+  width: calc(100% - 24px) !important;
+  height: 58px !important;
+  min-height: 58px !important;
+  z-index: 9999 !important;
+  background: #ffd400 !important;
+  color: #111 !important;
+  border: 2px solid #111 !important;
+  border-radius: 4px !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  pointer-events: auto !important;
+  touch-action: manipulation !important;
+}
+@media(max-width:520px){
+  #stopAlert:not([hidden]) #stopConfirmButton {
+    height: 48px !important; min-height: 48px !important; font-size: 18px !important;
+    left: 8px !important; right: 8px !important; bottom: 8px !important; width: calc(100% - 16px) !important;
+  }
+}
