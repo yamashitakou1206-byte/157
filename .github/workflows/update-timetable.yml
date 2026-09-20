@@ -1,0 +1,754 @@
+name: Update Meitetsu Timetable and Deploy Pages
+
+on:
+  workflow_dispatch:
+
+  schedule:
+    # 毎週日曜日 03:00 JST
+    - cron: "0 18 * * 6"
+
+  push:
+    branches:
+      - main
+    paths:
+      - "index.html"
+      - "app.js"
+      - "style.css"
+      - "icon-180.png"
+      - "icon.svg"
+      - "tools/**"
+      - "data/**"
+      - ".github/workflows/update-timetable.yml"
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ======================================================
+      # Repository
+      # ======================================================
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show checked-out revision and tools
+        run: |
+          echo "COMMIT=$(git rev-parse HEAD)"
+          echo "TOOLS:"
+          find tools -maxdepth 1 -type f -printf '%f\n' | sort
+
+      # ======================================================
+      # Official PDF cache
+      # ======================================================
+
+      - name: Restore official PDF cache
+        uses: actions/cache@v4
+        with:
+          path: data/pdfs
+          key: meitetsu-pdfs-${{ runner.os }}-${{ hashFiles('tools/sources.json') }}
+          restore-keys: |
+            meitetsu-pdfs-${{ runner.os }}-
+
+      # ======================================================
+      # Python
+      # ======================================================
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install PDF parser
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pdfplumber
+
+      # ======================================================
+      # Remove old generated JSON
+      # ======================================================
+
+      - name: Remove old generated timetable
+        run: |
+          rm -f data/timetables.json
+          test ! -f data/timetables.json
+
+      # ======================================================
+      # Download / reuse official PDFs and build timetable
+      # ======================================================
+
+      - name: Download official PDFs and build timetable
+        env:
+          PYTHONUNBUFFERED: "1"
+        run: |
+          python tools/build_all_official.py
+
+      # ======================================================
+      # Strict validation
+      # ======================================================
+
+      - name: Validate complete v12 timetable
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from collections import Counter, defaultdict
+          from pathlib import Path
+
+          p = Path("data/timetables.json")
+
+          if not p.is_file():
+              raise SystemExit(
+                  "ERROR: data/timetables.json が生成されていません"
+              )
+
+          data = json.loads(
+              p.read_text(encoding="utf-8")
+          )
+
+          version = data.get("version")
+          build = data.get("build")
+          trains = data.get("trains")
+          train_count = data.get("trainCount")
+
+          print("=" * 72)
+          print("Meitetsu timetable validation")
+          print("=" * 72)
+
+          print("version    :", version)
+          print("build      :", build)
+          print("trainCount :", train_count)
+
+          # --------------------------------------------------
+          # Basic structure
+          # --------------------------------------------------
+
+          if version != 12:
+              raise SystemExit(
+                  f"ERROR: v12ではありません: version={version!r}"
+              )
+
+          if (
+              not isinstance(build, str)
+              or not build.startswith("12-")
+          ):
+              raise SystemExit(
+                  "ERROR: v12 build識別子が不正です: "
+                  f"build={build!r}"
+              )
+
+          if not isinstance(trains, list):
+              raise SystemExit(
+                  "ERROR: trains が配列ではありません"
+              )
+
+          if train_count != len(trains):
+              raise SystemExit(
+                  "ERROR: trainCount不一致: "
+                  f"metadata={train_count}, "
+                  f"actual={len(trains)}"
+              )
+
+          if len(trains) < 1000:
+              raise SystemExit(
+                  "ERROR: 解析列車数が少なすぎます: "
+                  f"{len(trains)}"
+              )
+
+          # --------------------------------------------------
+          # Allowed values
+          # --------------------------------------------------
+
+          valid_types = {
+              "普通",
+              "準急",
+              "急行",
+              "快速急行",
+              "特急",
+              "快速特急",
+              "ミュースカイ",
+          }
+
+          valid_days = {
+              "weekday",
+              "holiday",
+          }
+
+          type_counts = Counter()
+          day_counts = Counter()
+
+          invalid = []
+          warnings = []
+
+          # 時刻
+          time_re = re.compile(
+              r"^(?:[01]\d|2[0-4]):[0-5]\d$"
+          )
+
+          # 駅名に混入してはいけない代表的な文字列
+          station_bad_re = re.compile(
+              r"(?:"
+              r"\d{1,2}:\d{2}"
+              r"|[|]"
+              r"|レレ"
+              r"|ﾚﾚ"
+              r")"
+          )
+
+          # --------------------------------------------------
+          # Time helper
+          # --------------------------------------------------
+
+          def time_to_minutes(value):
+              if not isinstance(value, str):
+                  return None
+
+              if not time_re.fullmatch(value):
+                  return None
+
+              hour, minute = map(
+                  int,
+                  value.split(":")
+              )
+
+              return hour * 60 + minute
+
+          # --------------------------------------------------
+          # Stop time helper
+          # --------------------------------------------------
+
+          def stop_times(stop):
+              result = []
+
+              for key in (
+                  "arrival",
+                  "departure",
+                  "time",
+              ):
+                  value = stop.get(key)
+
+                  if (
+                      isinstance(value, str)
+                      and value
+                      and value not in result
+                  ):
+                      result.append(value)
+
+              return result
+
+          # --------------------------------------------------
+          # Train validation
+          # --------------------------------------------------
+
+          for index, train in enumerate(trains):
+
+              if not isinstance(train, dict):
+                  invalid.append(
+                      (index, "列車データがobjectではありません")
+                  )
+                  continue
+
+              number = str(
+                  train.get("trainNumber", "")
+              ).strip()
+
+              train_type = str(
+                  train.get("type", "")
+              ).strip()
+
+              day_type = str(
+                  train.get("dayType", "")
+              ).strip()
+
+              stops = train.get("stops")
+
+              type_counts[train_type] += 1
+              day_counts[day_type] += 1
+
+              # ----------------------------------------------
+              # Train number
+              # ----------------------------------------------
+
+              if not number:
+                  invalid.append(
+                      (index, "列車番号なし")
+                  )
+
+              # ----------------------------------------------
+              # Type
+              # ----------------------------------------------
+
+              if train_type not in valid_types:
+                  invalid.append(
+                      (
+                          index,
+                          f"不正な種別={train_type!r}"
+                      )
+                  )
+
+              # ----------------------------------------------
+              # Day type
+              # ----------------------------------------------
+
+              if day_type not in valid_days:
+                  invalid.append(
+                      (
+                          index,
+                          f"不正なdayType={day_type!r}"
+                      )
+                  )
+
+              # ----------------------------------------------
+              # Stops
+              # ----------------------------------------------
+
+              if (
+                  not isinstance(stops, list)
+                  or len(stops) < 2
+              ):
+                  invalid.append(
+                      (
+                          index,
+                          f"停車駅不足 train={number!r}"
+                      )
+                  )
+                  continue
+
+              previous_minutes = None
+              day_offset = 0
+
+              for stop_index, stop in enumerate(stops):
+
+                  if not isinstance(stop, dict):
+                      invalid.append(
+                          (
+                              index,
+                              "stopがobjectではありません "
+                              f"stop={stop_index}"
+                          )
+                      )
+                      continue
+
+                  station = str(
+                      stop.get("station", "")
+                  ).strip()
+
+                  if not station:
+                      invalid.append(
+                          (
+                              index,
+                              "駅名なし "
+                              f"train={number!r} "
+                              f"stop={stop_index}"
+                          )
+                      )
+
+                  if station_bad_re.search(station):
+                      invalid.append(
+                          (
+                              index,
+                              "駅名解析崩れ "
+                              f"train={number!r} "
+                              f"station={station!r}"
+                          )
+                      )
+
+                  times = stop_times(stop)
+
+                  for value in times:
+
+                      if not time_re.fullmatch(value):
+                          invalid.append(
+                              (
+                                  index,
+                                  "不正時刻 "
+                                  f"train={number!r} "
+                                  f"station={station!r} "
+                                  f"time={value!r}"
+                              )
+                          )
+                          continue
+
+                      minutes = time_to_minutes(value)
+
+                      if minutes is None:
+                          continue
+
+                      adjusted = minutes + day_offset
+
+                      # 日付跨ぎを許可
+                      if (
+                          previous_minutes is not None
+                          and adjusted < previous_minutes
+                      ):
+                          if (
+                              previous_minutes >= 20 * 60
+                              and minutes <= 5 * 60
+                          ):
+                              day_offset += 24 * 60
+                              adjusted = (
+                                  minutes
+                                  + day_offset
+                              )
+                          else:
+                              invalid.append(
+                                  (
+                                      index,
+                                      "時刻逆転 "
+                                      f"train={number!r} "
+                                      f"station={station!r} "
+                                      f"time={value!r}"
+                                  )
+                              )
+
+                      previous_minutes = adjusted
+
+              # ----------------------------------------------
+              # Origin / destination consistency
+              # ----------------------------------------------
+
+              if stops:
+
+                  first_station = str(
+                      stops[0].get("station", "")
+                  ).strip()
+
+                  last_station = str(
+                      stops[-1].get("station", "")
+                  ).strip()
+
+                  origin = str(
+                      train.get("origin", "")
+                  ).strip()
+
+                  destination = str(
+                      train.get("destination", "")
+                  ).strip()
+
+                  if (
+                      origin
+                      and first_station
+                      and origin != first_station
+                  ):
+                      warnings.append(
+                          (
+                              index,
+                              "始発駅不一致 "
+                              f"train={number!r} "
+                              f"origin={origin!r} "
+                              f"first={first_station!r}"
+                          )
+                      )
+
+                  if (
+                      destination
+                      and last_station
+                      and destination != last_station
+                  ):
+                      warnings.append(
+                          (
+                              index,
+                              "終着駅不一致 "
+                              f"train={number!r} "
+                              f"destination={destination!r} "
+                              f"last={last_station!r}"
+                          )
+                      )
+
+          # --------------------------------------------------
+          # Required train types
+          # --------------------------------------------------
+
+          missing_types = (
+              valid_types
+              - set(type_counts)
+          )
+
+          if missing_types:
+              invalid.append(
+                  (
+                      -1,
+                      "不足している種別="
+                      + ",".join(
+                          sorted(missing_types)
+                      )
+                  )
+              )
+
+          # --------------------------------------------------
+          # Required day types
+          # --------------------------------------------------
+
+          missing_days = (
+              valid_days
+              - set(day_counts)
+          )
+
+          if missing_days:
+              invalid.append(
+                  (
+                      -1,
+                      "不足しているdayType="
+                      + ",".join(
+                          sorted(missing_days)
+                      )
+                  )
+              )
+
+          # --------------------------------------------------
+          # Exact duplicate detection
+          # --------------------------------------------------
+
+          duplicate_map = defaultdict(list)
+
+          for index, train in enumerate(trains):
+
+              stops = train.get("stops")
+
+              if not isinstance(stops, list):
+                  continue
+
+              normalized_stops = []
+
+              for stop in stops:
+
+                  if not isinstance(stop, dict):
+                      continue
+
+                  normalized_stops.append(
+                      (
+                          str(
+                              stop.get(
+                                  "station",
+                                  ""
+                              )
+                          ).strip(),
+                          str(
+                              stop.get(
+                                  "arrival",
+                                  ""
+                              )
+                          ).strip(),
+                          str(
+                              stop.get(
+                                  "departure",
+                                  ""
+                              )
+                          ).strip(),
+                          str(
+                              stop.get(
+                                  "time",
+                                  ""
+                              )
+                          ).strip(),
+                          bool(
+                              stop.get(
+                                  "pass",
+                                  False
+                              )
+                          ),
+                      )
+                  )
+
+              key = (
+                  str(
+                      train.get(
+                          "dayType",
+                          ""
+                      )
+                  ).strip(),
+                  str(
+                      train.get(
+                          "trainNumber",
+                          ""
+                      )
+                  ).strip(),
+                  str(
+                      train.get(
+                          "type",
+                          ""
+                      )
+                  ).strip(),
+                  tuple(normalized_stops),
+              )
+
+              duplicate_map[key].append(index)
+
+          duplicate_groups = [
+              indexes
+              for indexes in duplicate_map.values()
+              if len(indexes) > 1
+          ]
+
+          # --------------------------------------------------
+          # Summary
+          # --------------------------------------------------
+
+          print(
+              "Types      :",
+              dict(
+                  sorted(
+                      type_counts.items()
+                  )
+              )
+          )
+
+          print(
+              "Day types  :",
+              dict(
+                  sorted(
+                      day_counts.items()
+                  )
+              )
+          )
+
+          print(
+              "Invalid    :",
+              len(invalid)
+          )
+
+          print(
+              "Warnings   :",
+              len(warnings)
+          )
+
+          print(
+              "Duplicates :",
+              len(duplicate_groups)
+          )
+
+          # --------------------------------------------------
+          # Diagnostic examples
+          # --------------------------------------------------
+
+          if invalid:
+
+              print()
+              print("Invalid examples:")
+
+              for item in invalid[:50]:
+                  print(" ", item)
+
+          if warnings:
+
+              print()
+              print("Warning examples:")
+
+              for item in warnings[:30]:
+                  print(" ", item)
+
+          if duplicate_groups:
+
+              print()
+              print("Exact duplicate examples:")
+
+              for indexes in duplicate_groups[:30]:
+
+                  first = trains[indexes[0]]
+
+                  stops = first.get(
+                      "stops",
+                      []
+                  )
+
+                  origin = (
+                      stops[0].get(
+                          "station",
+                          ""
+                      )
+                      if stops
+                      else ""
+                  )
+
+                  destination = (
+                      stops[-1].get(
+                          "station",
+                          ""
+                      )
+                      if stops
+                      else ""
+                  )
+
+                  print(
+                      " ",
+                      (
+                          first.get(
+                              "dayType"
+                          ),
+                          first.get(
+                              "trainNumber"
+                          ),
+                          origin,
+                          destination,
+                      ),
+                      "indexes=",
+                      indexes,
+                  )
+
+          # --------------------------------------------------
+          # Fail strict validation
+          # --------------------------------------------------
+
+          if duplicate_groups:
+              raise SystemExit(
+                  "ERROR: 完全重複列車が残っています: "
+                  f"{len(duplicate_groups)}組"
+              )
+
+          if invalid:
+              raise SystemExit(
+                  "ERROR: 不正データが残っています: "
+                  f"{len(invalid)}件"
+              )
+
+          print()
+          print("=" * 72)
+          print("VALIDATION SUCCESS")
+          print("=" * 72)
+          PY
+
+      # ======================================================
+      # Pages configuration
+      # ======================================================
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      # ======================================================
+      # Upload complete site
+      # ======================================================
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+  # ==========================================================
+  # Deploy
+  # ==========================================================
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    runs-on: ubuntu-latest
+    needs: build
+
+    permissions:
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
